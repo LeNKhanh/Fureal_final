@@ -71,6 +71,10 @@ import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
         ],
         synchronize: false, // Never use true in production
         logging: configService.get('app.env') === 'development',
+        // SSL required for cloud databases
+        ssl: {
+          rejectUnauthorized: false,
+        },
       }),
       inject: [ConfigService],
     }),
