@@ -16,6 +16,9 @@ async function createApp() {
       { logger: ['error', 'warn', 'log'] }
     );
     
+    // Global prefix - IMPORTANT for routing
+    app.setGlobalPrefix('api');
+    
     app.enableCors({
       origin: process.env.CORS_ORIGIN || '*',
       credentials: true,
