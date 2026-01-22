@@ -14,10 +14,10 @@ export const dataSourceOptions: DataSourceOptions = {
   migrations: ['dist/migrations/*{.ts,.js}'],
   synchronize: false,
   logging: process.env.NODE_ENV === 'development',
-  // ALWAYS enable SSL for security (disable only for local dev with DISABLE_SSL=true)
-  ssl: process.env.DISABLE_SSL === 'true' 
-    ? false
-    : { rejectUnauthorized: false },
+  // FORCE SSL - HARDCODED
+  ssl: {
+    rejectUnauthorized: false,
+  },
 };
 
 const dataSource = new DataSource(dataSourceOptions);
