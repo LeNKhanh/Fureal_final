@@ -3,9 +3,11 @@ import { config } from 'dotenv';
 
 config();
 
+const host = process.env.DATABASE_HOST || 'localhost';
+
 export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
-  host: process.env.DATABASE_HOST || 'localhost',
+  host,
   port: parseInt(process.env.DATABASE_PORT, 10) || 5432,
   username: process.env.DATABASE_USER || process.env.DATABASE_USERNAME || 'postgres',
   password: process.env.DATABASE_PASSWORD || 'postgres',
@@ -14,8 +16,8 @@ export const dataSourceOptions: DataSourceOptions = {
   migrations: ['dist/migrations/*{.ts,.js}'],
   synchronize: false,
   logging: process.env.NODE_ENV === 'development',
-  // SSL required for cloud databases (Supabase, etc.)
-  ssl: process.env.NODE_ENV === 'production' 
+  // SSL required for all non-localhost connections (cloud databases)
+  ssl: host !== 'localhost' && host !== '127.0.0.1'
     ? { rejectUnauthorized: false } 
     : false,
 };
