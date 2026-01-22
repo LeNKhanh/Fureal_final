@@ -3,11 +3,9 @@ import { config } from 'dotenv';
 
 config();
 
-const host = process.env.DATABASE_HOST || 'localhost';
-
 export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
-  host,
+  host: process.env.DATABASE_HOST || 'localhost',
   port: parseInt(process.env.DATABASE_PORT, 10) || 5432,
   username: process.env.DATABASE_USER || process.env.DATABASE_USERNAME || 'postgres',
   password: process.env.DATABASE_PASSWORD || 'postgres',
@@ -16,10 +14,10 @@ export const dataSourceOptions: DataSourceOptions = {
   migrations: ['dist/migrations/*{.ts,.js}'],
   synchronize: false,
   logging: process.env.NODE_ENV === 'development',
-  // SSL required for all non-localhost connections (cloud databases)
-  ssl: host !== 'localhost' && host !== '127.0.0.1'
-    ? { rejectUnauthorized: false } 
-    : false,
+  // ALWAYS enable SSL for security (disable only for local dev with DISABLE_SSL=true)
+  ssl: process.env.DISABLE_SSL === 'true' 
+    ? false
+    : { rejectUnauthorized: false },
 };
 
 const dataSource = new DataSource(dataSourceOptions);
