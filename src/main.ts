@@ -85,11 +85,39 @@ async function bootstrap() {
   });
 
   const port = configService.get('app.port');
-  await app.listen(port);
-
-  logger.log(`Application is running on: http://localhost:${port}/api`);
-  logger.log(`API Documentation: http://localhost:${port}/api/docs`);
-  logger.log(`Environment: ${configService.get('app.env')}`);
+  
+  // Only listen on port for local development
+  if (process.env.NODE_ENV !== 'production') {
+    await app.listen(port);
+    logger.log(`Application is running on: http://localhost:${port}/api`);
+    logger.log(`API Documentation: http://localhost:${port}/api/docs`);
+    logger.log(`Environment: ${configService.get('app.env')}`);
+  } else {
+    await app.init();
+    logger.log(`Application initialized for serverless deployment`);
+    logger.log(`Environment: ${configService.get('app.env')}`);
+  }
+  
+  return app;
 }
 
-bootstrap();
+// Serverless handler for Vercel
+let cachedApp;
+
+async function getApp() {
+  if (!cachedApp) {
+    cachedApp = await bootstrap();
+  }
+  return cachedApp;
+}
+
+export default async function handler(req, res) {
+  const app = await getApp();
+  const expressApp = app.getHttpAdapter().getInstance();
+  return expressApp(req, res);
+}
+
+// For local development
+if (require.main === module) {
+  bootstrap();
+}
