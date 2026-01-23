@@ -40,10 +40,12 @@ lerna-debug.log*
 .env.local
 .env.*.local
 .env.example
+*.example
+*example*
 
 # Documentation
-README.md
 *.md
+!API_DOCUMENTATION.md
 
 # Temp
 *.swp
