@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Category } from './entities/category.entity';
 import { CreateCategoryDto } from './dto/create-category.dto';
+import { UpdateCategoryDto } from './dto/update-category.dto';
 
 @Injectable()
 export class CategoriesService {
@@ -31,5 +32,17 @@ export class CategoriesService {
     }
 
     return category;
+  }
+
+  async update(id: number, updateDto: UpdateCategoryDto): Promise<Category> {
+    const category = await this.findOne(id);
+    Object.assign(category, updateDto);
+    return this.categoryRepository.save(category);
+  }
+
+  async remove(id: number): Promise<{ message: string }> {
+    const category = await this.findOne(id);
+    await this.categoryRepository.remove(category);
+    return { message: `Category with ID ${id} has been deleted` };
   }
 }
