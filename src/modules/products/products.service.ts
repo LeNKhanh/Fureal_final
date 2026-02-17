@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, Between, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
 import { Product } from './entities/product.entity';
+import { ProductImage } from '../product-images/entities/product-image.entity';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { FilterProductDto } from './dto/filter-product.dto';
@@ -13,23 +14,40 @@ export class ProductsService {
   constructor(
     @InjectRepository(Product)
     private productRepository: Repository<Product>,
+    @InjectRepository(ProductImage)
+    private productImageRepository: Repository<ProductImage>,
     private auditLogsService: AuditLogsService,
   ) {}
 
   async create(createDto: CreateProductDto, userId: string): Promise<Product> {
+    const { images, ...productData } = createDto;
+    
     const product = this.productRepository.create({
-      ...createDto,
+      ...productData,
       createdById: userId,
     });
     const savedProduct = await this.productRepository.save(product);
 
+    // Thêm ảnh nếu có
+    if (images && images.length > 0) {
+      const productImages = images.map((img, index) => 
+        this.productImageRepository.create({
+          productId: savedProduct.id,
+          imageUrl: img.imageUrl,
+          isPrimary: img.isPrimary ?? (index === 0), // Ảnh đầu tiên mặc định là primary
+        })
+      );
+      await this.productImageRepository.save(productImages);
+    }
+
     await this.auditLogsService.log(
       userId,
       'CREATE_PRODUCT',
-      `Product: ${savedProduct.name} (ID: ${savedProduct.id})`,
+      `Product: ${savedProduct.name} (ID: ${savedProduct.id}) with ${images?.length || 0} images`,
     );
 
-    return savedProduct;
+    // Reload để lấy ảnh
+    return this.findOne(savedProduct.id);
   }
 
   async findAll(filterDto: FilterProductDto): Promise<PaginatedResult<Product>> {
@@ -139,18 +157,36 @@ export class ProductsService {
   }
 
   async update(id: string, updateDto: UpdateProductDto): Promise<Product> {
+    const { images, ...productData } = updateDto;
     const product = await this.findOne(id);
-    Object.assign(product, updateDto);
+    
+    Object.assign(product, productData);
     const updatedProduct = await this.productRepository.save(product);
 
-    // Log audit
+    // Cập nhật ảnh nếu có
+    if (images && images.length > 0) {
+      // Xóa ảnh cũ
+      await this.productImageRepository.delete({ productId: id });
+      
+      // Thêm ảnh mới
+      const productImages = images.map((img, index) => 
+        this.productImageRepository.create({
+          productId: id,
+          imageUrl: img.imageUrl,
+          isPrimary: img.isPrimary ?? (index === 0),
+        })
+      );
+      await this.productImageRepository.save(productImages);
+    }
+
     await this.auditLogsService.log(
       null,
       'UPDATE_PRODUCT',
-      `Product: ${updatedProduct.name} (ID: ${id})`,
+      `Product: ${updatedProduct.name} (ID: ${id}) updated with ${images?.length || 0} images`,
     );
 
-    return updatedProduct;
+    // Reload để lấy ảnh mới
+    return this.findOne(id);
   }
 
   async remove(id: string): Promise<void> {

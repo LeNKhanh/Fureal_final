@@ -36,6 +36,7 @@ import { OrdersModule } from './modules/orders/orders.module';
 import { AddressesModule } from './modules/addresses/addresses.module';
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { HealthModule } from './modules/health/health.module';
+import { AiModule } from './modules/ai/ai.module';
 
 @Module({
   imports: [
@@ -90,6 +91,7 @@ import { HealthModule } from './modules/health/health.module';
     AddressesModule,
     AuditLogsModule,
     HealthModule,
+    AiModule,
   ],
   providers: [
     {

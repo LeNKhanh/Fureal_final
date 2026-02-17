@@ -20,6 +20,9 @@ export default () => ({
     callbackUrl: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3000/api/auth/google/callback',
   },
   apiKey: process.env.API_KEY || '',
+  gemini: {
+    apiKey: process.env.GEMINI_API_KEY || '',
+  },
   pagination: {
     defaultPageSize: parseInt(process.env.DEFAULT_PAGE_SIZE, 10) || 20,
     maxPageSize: parseInt(process.env.MAX_PAGE_SIZE, 10) || 100,

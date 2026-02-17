@@ -1,5 +1,17 @@
-import { IsString, IsNumber, IsOptional, IsInt, IsBoolean, Min } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsInt, IsBoolean, Min, IsArray, IsUrl } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+
+export class ProductImageDto {
+  @ApiProperty({ example: 'https://example.com/image.jpg' })
+  @IsUrl()
+  imageUrl: string;
+
+  @ApiPropertyOptional({ example: true, description: 'Đánh dấu ảnh chính hiển thị' })
+  @IsOptional()
+  @IsBoolean()
+  isPrimary?: boolean;
+}
 
 export class CreateProductDto {
   @ApiProperty({ example: 'Modern Sofa' })
@@ -85,4 +97,17 @@ export class CreateProductDto {
   @IsOptional()
   @IsString()
   huong?: string;
+
+  @ApiPropertyOptional({ 
+    type: [ProductImageDto],
+    description: 'Danh sách ảnh sản phẩm (có thể nhiều ảnh)',
+    example: [
+      { imageUrl: 'https://example.com/image1.jpg', isPrimary: true },
+      { imageUrl: 'https://example.com/image2.jpg', isPrimary: false }
+    ]
+  })
+  @IsOptional()
+  @IsArray()
+  @Type(() => ProductImageDto)
+  images?: ProductImageDto[];
 }
