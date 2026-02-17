@@ -13,7 +13,7 @@ import {
   createFengShuiProfile,
   formatFengShuiProfileForAI,
   FengShuiElement,
-} from '@common/utils/feng-shui.util';
+} from '../../common/utils/feng-shui.util';
 
 @Injectable()
 export class AiService implements OnModuleInit {
