@@ -611,40 +611,40 @@ YÊU CẦU TRẢ LỜI:
    ${contextInfo.birthYear ? `- Ý nghĩa của năm sinh ${contextInfo.birthYear}` : ''}
 
 2. GỢI Ý SẢN PHẨM (3-5 sản phẩm từ danh sách trên):
-   B\u1eaeT BU\u1ed8C ph\u1ea3i hi\u1ec3n th\u1ecb \u0111\u1ea7y \u0111\u1ee7 th\u00f4ng tin sau cho m\u1ed7i s\u1ea3n ph\u1ea9m:
+   BẮT BUỘC phải hiển thị đầy đủ thông tin sau cho mỗi sản phẩm:
 
-   - T\u00ean s\u1ea3n ph\u1ea9m (\u0111\u01b0a ra t\u00ean c\u1ee5 th\u1ec3 t\u1eeb danh s\u00e1ch)
-   - Gi\u00e1: (hi\u1ec3n th\u1ecb gi\u00e1 th\u1ef1c t\u1ebf t\u1eeb danh s\u00e1ch)
-   - T\u1ea1i sao ph\u00f9 h\u1ee3p: (gi\u1ea3i th\u00edch ng\u1eafn g\u1ecdn li\u00ean quan \u0111\u1ebfn m\u1ec7nh/h\u01b0\u1edbng)
-   - H\u00ecnh \u1ea3nh: (B\u1eaeT BU\u1ed8C \u0111\u01b0a ra link \u1ea3nh TH\u1ef0C T\u1ebeT t\u1eeb danh s\u00e1ch, VD: https://example.com/image.jpg)
+   - Tên sản phẩm (đưa ra tên cụ thể từ danh sách)
+   - Giá: (hiển thị giá thực tế từ danh sách)
+   - Tại sao phù hợp: (giải thích ngắn gọn liên quan đến mệnh/hướng)
+   - Hình ảnh: (BẮT BUỘC đưa ra link ảnh THỰC TẾ từ danh sách, VD: https://example.com/image.jpg)
 
-   V\u00ed d\u1ee5 format:
+   Ví dụ format:
    
-   Gi\u01b0\u1eddng ng\u1ee7 g\u1ed7 s\u1ed3i \u0111\u1ecf
-   - Gi\u00e1: 5,500,000\u0111
-   - T\u1ea1i sao ph\u00f9 h\u1ee3p: M\u1ec7nh M\u1ed9c, m\u00e0u \u0111\u1ecf nh\u1ea1t, ch\u1ea5t li\u1ec7u g\u1ed7 t\u1ef1 nhi\u00ean ph\u00f9 h\u1ee3p
-   - H\u00ecnh \u1ea3nh: https://storage.example.com/products/giuong-go-soi-do.jpg
+   Giường ngủ gỗ sồi đỏ
+   - Giá: 5,500,000đ
+   - Tại sao phù hợp: Mệnh Mộc, màu đỏ nhạt, chất liệu gỗ tự nhiên phù hợp
+   - Hình ảnh: https://storage.example.com/products/giuong-go-soi-do.jpg
 
-3. L\u1edcI KHUY\u00caN B\u1ed0 TR\u00cd:
-   - V\u1ecb tr\u00ed \u0111\u1eb7t s\u1ea3n ph\u1ea9m trong nh\u00e0
-   - C\u00e1ch k\u1ebft h\u1ee3p v\u1edbi n\u1ed9i th\u1ea5t hi\u1ec7n c\u00f3
+3. LỜI KHUYÊN BỐ TRÍ:
+   - Vị trí đặt sản phẩm trong nhà
+   - Cách kết hợp với nội thất hiện có
 
-4. NGU\u1ed2N THAM KH\u1ea2O:
-   \u0110\u1ec3 t\u00ecm hi\u1ec3u th\u00eam v\u1ec1 phong th\u1ee7y v\u00e0 m\u1ec7nh ${contextInfo.menh || 'c\u1ee7a b\u1ea1n'}:
+4. NGUỒN THAM KHẢO:
+   Để tìm hiểu thêm về phong thủy và mệnh ${contextInfo.menh || 'của bạn'}:
    
-   T\u00e0i li\u1ec7u tham kh\u1ea3o:
-   - Hi\u1ec7p h\u1ed9i Phong Th\u1ee7y Vi\u1ec7t Nam: https://phongthuy.vn/cach-xac-dinh-menh
-   - C\u1ea9m nang phong th\u1ee7y Fureal: https://fureal.com/feng-shui-guide
+   Tài liệu tham khảo:
+   - Hiệp hội Phong Thủy Việt Nam: https://phongthuy.vn/cach-xac-dinh-menh
+   - Cẩm nang phong thủy Fureal: https://fureal.com/feng-shui-guide
    
-   Li\u00ean h\u1ec7 chuy\u00ean gia:
-   - Hotline t\u01b0 v\u1ea5n mi\u1ec5n ph\u00ed: 1900-xxxx
+   Liên hệ chuyên gia:
+   - Hotline tư vấn miễn phí: 1900-xxxx
    - Email: fengshui@fureal.com
 
-\u0110\u1ed9 d\u00e0i: 200-300 t\u1eeb.
-TUY\u1ec6T \u0110\u1ed0I KH\u00d4NG s\u1eed d\u1ee5ng emoji.
-TUY\u1ec6T \u0110\u1ed0I KH\u00d4NG s\u1eed d\u1ee5ng markdown nh\u01b0 d\u1ea5u sao (*), hai d\u1ea5u sao (**), d\u1ea5u g\u1ea1ch d\u01b0\u1edbi (_).
-Ch\u1ec9 d\u00f9ng v\u0103n b\u1ea3n thu\u1ea7n v\u1edbi d\u1ea5u g\u1ea1ch \u0111\u1ea7u d\u00f2ng (-) v\u00e0 s\u1ed1 (1, 2, 3).
-B\u1eaeT BU\u1ed8C ph\u1ea3i \u0111\u01b0a ra link h\u00ecnh \u1ea3nh TH\u1ef0C T\u1ebeT cho m\u1ed7i s\u1ea3n ph\u1ea9m.
+Độ dài: 200-300 từ.
+TUYỆT ĐỐI KHÔNG sử dụng emoji.
+TUYỆT ĐỐI KHÔNG sử dụng markdown như dấu sao (*), hai dấu sao (**), dấu gạch dưới (_).
+Chỉ dùng văn bản thuần với dấu gạch đầu dòng (-) và số (1, 2, 3).
+BẮT BUỘC phải đưa ra link hình ảnh THỰC TẾ cho mỗi sản phẩm.
 ` : `
 YÊU CẦU TRẢ LỜI:
 
