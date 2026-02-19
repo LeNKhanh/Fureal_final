@@ -58,7 +58,9 @@ export class AiService implements OnModuleInit {
       const result = await this.productsService.findAll({
         isActive: true,
         page: 1,
-        limit: 50, // Load 50 sản phẩm phổ biến nhất
+        limit: 100, // Load 100 sản phẩm để đảm bảo đa dạng category
+        sortBy: 'createdAt',
+        sortOrder: 'DESC',
       });
       
       this.productCache = result.data || [];
@@ -121,12 +123,19 @@ export class AiService implements OnModuleInit {
       
       const matched = filtered.filter(p => {
         const productName = (p.name || '').toLowerCase().replace(/\s+/g, ' ').trim();
-        return searchWords.every(word => productName.includes(word));
+        const categoryName = (p.category?.name || '').toLowerCase();
+        
+        // Tìm trong tên sản phẩm HOẶC tên category
+        return searchWords.every(word => 
+          productName.includes(word) || categoryName.includes(word)
+        );
       });
       
       if (matched.length > 0) {
         filtered = matched;
-        this.logger.log(`[CACHE] After productType filter: ${filtered.length} products`);
+        this.logger.log(`[CACHE] After productType filter: ${filtered.length} products (search: "${searchTerm}")`);
+      } else {
+        this.logger.warn(`[CACHE] No products found for "${searchTerm}"`);
       }
     }
 
