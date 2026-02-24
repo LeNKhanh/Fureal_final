@@ -37,6 +37,12 @@ export class Order {
   @Column({ name: 'receiver_phone', length: 20, nullable: true })
   receiverPhone: string;
 
+  @Column({ name: 'payment_method', length: 50, nullable: true, default: 'COD' })
+  paymentMethod: string;
+
+  @Column({ type: 'text', nullable: true })
+  notes: string;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

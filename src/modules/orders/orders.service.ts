@@ -57,6 +57,7 @@ export class OrdersService {
     let receiverPhone = null;
 
     if (createOrderDto.addressId) {
+      // Use saved address by ID
       const address = await this.addressRepository.findOne({
         where: { id: createOrderDto.addressId, userId },
       });
@@ -68,6 +69,12 @@ export class OrdersService {
       addressSnapshot = `${address.address}, ${address.city}`;
       receiverName = address.receiverName;
       receiverPhone = address.phone;
+    } else if (createOrderDto.receiverName && createOrderDto.phone && createOrderDto.address) {
+      // Use inline address fields from form
+      const city = createOrderDto.city ? `, ${createOrderDto.city}` : '';
+      addressSnapshot = `${createOrderDto.address}${city}`;
+      receiverName = createOrderDto.receiverName;
+      receiverPhone = createOrderDto.phone;
     }
 
     // Use transaction for order creation
@@ -102,6 +109,8 @@ export class OrdersService {
         shippingAddress: addressSnapshot,
         receiverName,
         receiverPhone,
+        paymentMethod: createOrderDto.paymentMethod || 'COD',
+        notes: createOrderDto.notes || null,
       });
 
       const savedOrder = await queryRunner.manager.save(order);
