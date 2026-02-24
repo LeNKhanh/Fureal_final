@@ -71,7 +71,8 @@ import { AiModule } from './modules/ai/ai.module';
           InventoryLog,
           AuditLog,
         ],
-        synchronize: false, // Never use true in production
+        synchronize: false,
+        migrationsRun: true, // Auto-run pending migrations on startup
         logging: configService.get('app.env') === 'development',
         // SSL required for cloud databases
         ssl: {
