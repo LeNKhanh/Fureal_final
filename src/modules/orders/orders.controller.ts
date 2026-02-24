@@ -42,6 +42,15 @@ export class OrdersController {
     return this.ordersService.findAll(filterDto, user.userId, user.roleName);
   }
 
+  @Get('all')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'MANAGER')
+  @ApiOperation({ summary: 'Get ALL orders (Admin/Manager only)' })
+  @ApiResponse({ status: 200, description: 'All orders retrieved successfully' })
+  findAllAdmin(@Query() filterDto: FilterOrderDto) {
+    return this.ordersService.findAll(filterDto, undefined, 'ADMIN');
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get order by ID (Users see only their orders)' })
   @ApiResponse({ status: 200, description: 'Order retrieved successfully' })
