@@ -12,10 +12,29 @@ async function bootstrap() {
   // Global prefix
   app.setGlobalPrefix('api');
 
-  // CORS
+  // CORS – use a callback so only the matched origin is echoed back.
+  // Passing the raw CORS_ORIGIN string as origin would set all values in one
+  // header, which browsers reject. The callback approach returns only the
+  // matched origin (or true), which is always a single value.
+  const corsOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+
   app.enableCors({
-    origin: configService.get('cors.origin'),
+    origin: (origin, callback) => {
+      // No origin = server-to-server / mobile / curl – allow
+      if (!origin || corsOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(null, false);
+      }
+    },
     credentials: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: 'Content-Type,Authorization,X-Requested-With,Accept',
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   });
 
   // Validation pipe

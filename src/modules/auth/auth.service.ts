@@ -113,6 +113,13 @@ export class AuthService {
     return user;
   }
 
+  async getProfile(userId: string) {
+    const user = await this.validateUser(userId);
+    // Strip sensitive fields before returning
+    const { passwordHash, ...result } = user as any;
+    return result;
+  }
+
   async googleLogin(googleUser: GoogleAuthDto) {
     const { provider, providerId, email, fullName, picture } = googleUser;
 

@@ -1,11 +1,24 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, Get, UseGuards, Req, Res } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+﻿import {
+  Controller,
+  Post,
+  Body,
+  HttpCode,
+  HttpStatus,
+  Get,
+  UseGuards,
+  Req,
+  Res,
+} from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { Response } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { GoogleAuthDto } from './dto/google-auth.dto';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RequestWithGoogleUser } from './interfaces/request-with-google-user.interface';
+import { GetUser } from '../../common/decorators/get-user.decorator';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -43,10 +56,35 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Login successful' })
   async googleAuthRedirect(@Req() req: RequestWithGoogleUser, @Res() res: Response) {
     const result = await this.authService.googleLogin(req.user);
-    
-    // Redirect to frontend with token
-    // You can customize this URL based on your frontend
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
     res.redirect(`${frontendUrl}/auth/callback?token=${result.accessToken}`);
+  }
+
+  @Post('google-token')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Exchange Google user info for a backend JWT (called by NextAuth)' })
+  @ApiResponse({ status: 200, description: 'Backend JWT returned' })
+  async googleToken(
+    @Body() body: { providerId: string; email: string; fullName?: string; picture?: string },
+  ) {
+    const dto: GoogleAuthDto = {
+      provider: 'GOOGLE',
+      providerId: body.providerId,
+      email: body.email,
+      fullName: body.fullName || body.email.split('@')[0],
+      picture: body.picture,
+      accessToken: '',
+    };
+    return this.authService.googleLogin(dto);
+  }
+
+  @Get('profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current user profile' })
+  @ApiResponse({ status: 200, description: 'Profile returned' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getProfile(@GetUser() user: any) {
+    return this.authService.getProfile(user.userId);
   }
 }
