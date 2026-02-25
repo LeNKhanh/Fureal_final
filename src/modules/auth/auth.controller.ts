@@ -15,6 +15,7 @@ import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
+import { GoogleTokenDto } from './dto/google-token.dto';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RequestWithGoogleUser } from './interfaces/request-with-google-user.interface';
@@ -64,11 +65,9 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Exchange Google user info for a backend JWT (called by NextAuth)' })
   @ApiResponse({ status: 200, description: 'Backend JWT returned' })
-  async googleToken(
-    @Body() body: { providerId: string; email: string; fullName?: string; picture?: string },
-  ) {
+  async googleToken(@Body() body: GoogleTokenDto) {
     const dto: GoogleAuthDto = {
-      provider: 'GOOGLE',
+      provider: 'google', // must match what GoogleStrategy saves in the DB
       providerId: body.providerId,
       email: body.email,
       fullName: body.fullName || body.email.split('@')[0],
