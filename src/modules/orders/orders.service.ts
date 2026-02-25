@@ -302,6 +302,46 @@ export class OrdersService {
     });
   }
 
+  async cancelOrder(id: string, userId: string, reason?: string): Promise<Order> {
+    const order = await this.orderRepository.findOne({ where: { id } });
+
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${id} not found`);
+    }
+
+    // Only the order owner can cancel
+    if (order.userId !== userId) {
+      throw new ForbiddenException('You can only cancel your own orders');
+    }
+
+    // Only cancellable when not yet shipped/delivered/already cancelled
+    const cancellableStatuses = ['PENDING', 'CONFIRMED', 'PROCESSING'];
+    if (!cancellableStatuses.includes(order.status)) {
+      throw new BadRequestException(
+        `Cannot cancel order with status "${order.status}". Only orders in PENDING, CONFIRMED or PROCESSING status can be cancelled.`,
+      );
+    }
+
+    const oldStatus = order.status;
+    order.status = 'CANCELLED';
+    await this.orderRepository.save(order);
+
+    // Record status history
+    await this.createStatusHistory(id, oldStatus, 'CANCELLED');
+
+    // Audit log
+    await this.auditLogsService.log(
+      userId,
+      'CANCEL_ORDER',
+      `Order ID: ${id}, ${oldStatus} -> CANCELLED${reason ? ` | Reason: ${reason}` : ''}`,
+    );
+
+    return this.orderRepository.findOne({
+      where: { id },
+      relations: ['items', 'items.product', 'statusHistory'],
+    });
+  }
+
   private async createStatusHistory(
     orderId: string,
     oldStatus: string,

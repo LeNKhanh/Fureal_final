@@ -67,4 +67,18 @@ export class OrdersController {
   updateStatus(@Param('id') id: string, @Body() updateStatusDto: UpdateOrderStatusDto) {
     return this.ordersService.updateStatus(id, updateStatusDto);
   }
+
+  @Patch(':id/cancel')
+  @ApiOperation({ summary: 'Cancel an order (owner only, PENDING/CONFIRMED/PROCESSING)' })
+  @ApiResponse({ status: 200, description: 'Order cancelled successfully' })
+  @ApiResponse({ status: 400, description: 'Order cannot be cancelled at current status' })
+  @ApiResponse({ status: 403, description: 'Not your order' })
+  @ApiResponse({ status: 404, description: 'Order not found' })
+  cancelOrder(
+    @Param('id') id: string,
+    @GetUser() user: any,
+    @Body() body: { reason?: string },
+  ) {
+    return this.ordersService.cancelOrder(id, user.userId, body?.reason);
+  }
 }
