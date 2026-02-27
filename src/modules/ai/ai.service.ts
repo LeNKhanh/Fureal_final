@@ -12,7 +12,6 @@ import {
   parseBirthDate,
   createFengShuiProfile,
   formatFengShuiProfileForAI,
-  FengShuiElement,
 } from '../../common/utils/feng-shui.util';
 
 @Injectable()
@@ -605,7 +604,8 @@ THÔNG TIN KHÁCH HÀNG
 ${contextInfo.menh ? `- Mệnh: ${contextInfo.menh}` : ''}
 ${contextInfo.huong ? `- Hướng nhà: ${contextInfo.huong}` : ''}
 ${contextInfo.productType ? `- Quan tâm: ${contextInfo.productType}` : ''}
-${contextInfo.birthYear ? `- Năm sinh: ${contextInfo.birthYear} (${2026 - contextInfo.birthYear} tuổi)` : ''}
+${contextInfo.birthYear ? `- Năm sinh: ${contextInfo.birthYear} (${new Date().getFullYear() - contextInfo.birthYear} tuổi)` : ''}
+${contextInfo.gender ? `- Giới tính: ${contextInfo.gender}` : ''}
 ${detailedFengShuiInfo}
 
 -----------------------------------
@@ -727,10 +727,23 @@ BẮT BUỘC phải đưa ra link hình ảnh THỰC TẾ cho mỗi sản phẩm
     huong?: string;
     productType?: string;
     birthYear?: number;
+    gender?: 'Nam' | 'Nữ';
     fengShuiProfile?: any;
   } {
     const fullText = conversation.map(m => m.content).join(' ').toLowerCase();
-    
+
+    // PHÁT HIỆN GIỚI TÍNH
+    let gender: 'Nam' | 'Nữ' = 'Nam'; // default
+    if (
+      fullText.includes('nữ') || fullText.includes('nu ') ||
+      fullText.includes('bà ') || fullText.includes('chị ') ||
+      fullText.includes('cô ') || fullText.includes('em gái') ||
+      fullText.includes('vợ') || fullText.includes('mẹ') ||
+      fullText.includes('bạn gái') || fullText.includes('con gái')
+    ) {
+      gender = 'Nữ';
+    }
+
     // PHÁT HIỆN NGÀY SINH
     let birthYear: number | undefined;
     let fengShuiProfile: any = undefined;
@@ -738,7 +751,7 @@ BẮT BUỘC phải đưa ra link hình ảnh THỰC TẾ cho mỗi sản phẩm
     const birthInfo = parseBirthDate(fullText);
     if (birthInfo) {
       birthYear = birthInfo.year;
-      fengShuiProfile = createFengShuiProfile(birthYear);
+      fengShuiProfile = createFengShuiProfile(birthYear, new Date().getFullYear(), gender);
       this.logger.log(
         `[DETECT] BirthYear: ${birthYear}, Element: ${fengShuiProfile.element}, Age: ${fengShuiProfile.ageGroup}`,
       );
@@ -817,7 +830,7 @@ BẮT BUỘC phải đưa ra link hình ảnh THỰC TẾ cho mỗi sản phẩm
       menh = fengShuiProfile.element;
     }
 
-    return { menh, huong, productType, birthYear, fengShuiProfile };
+    return { menh, huong, productType, birthYear, gender, fengShuiProfile };
   }
 
   /**
