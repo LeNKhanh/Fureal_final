@@ -49,6 +49,10 @@ export class Model3D {
   @Column({ name: 'file_format', length: 20, nullable: true })
   fileFormat: string;
 
+  /** Giá bán (VNĐ), ví dụ: 5990000 */
+  @Column({ type: 'bigint', nullable: true, default: 0 })
+  price: number;
+
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
 

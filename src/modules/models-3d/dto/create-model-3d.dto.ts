@@ -59,6 +59,12 @@ export class CreateModel3DDto {
   @IsIn(['glb', 'gltf', 'obj', 'fbx'])
   fileFormat?: string;
 
+  @ApiPropertyOptional({ example: 5990000, description: 'Giá bán (VNĐ)' })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  price?: number;
+
   @ApiPropertyOptional({ example: true })
   @IsOptional()
   @IsBoolean()
