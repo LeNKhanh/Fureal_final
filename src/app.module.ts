@@ -39,6 +39,7 @@ import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { HealthModule } from './modules/health/health.module';
 import { AiModule } from './modules/ai/ai.module';
 import { Models3DModule } from './modules/models-3d/models-3d.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 
 @Module({
   imports: [
@@ -97,6 +98,7 @@ import { Models3DModule } from './modules/models-3d/models-3d.module';
     HealthModule,
     AiModule,
     Models3DModule,
+    AnalyticsModule,
   ],
   providers: [
     {

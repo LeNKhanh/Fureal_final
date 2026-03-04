@@ -34,6 +34,10 @@ export default () => ({
     ttl: parseInt(process.env.RATE_LIMIT_TTL, 10) || 60,
     limit: parseInt(process.env.RATE_LIMIT_MAX, 10) || 100,
   },
+  ga4: {
+    propertyId: process.env.GA4_PROPERTY_ID || '',
+    credentialsJson: process.env.GA4_CREDENTIALS_JSON || '',
+  },
   r2: {
     accountId: process.env.R2_ACCOUNT_ID || '',
     accessKeyId: process.env.R2_ACCESS_KEY_ID || '',
