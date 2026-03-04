@@ -38,7 +38,7 @@ export default () => ({
     accountId: process.env.R2_ACCOUNT_ID || '',
     accessKeyId: process.env.R2_ACCESS_KEY_ID || '',
     secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || '',
-    bucketName: process.env.R2_BUCKET_NAME || 'fureal-models',
-    publicUrl: process.env.R2_PUBLIC_URL || 'https://r2.fureal.store',
+    bucketName: process.env.R2_BUCKET_NAME || 'fureal-assets',
+    publicUrl: process.env.R2_PUBLIC_URL || 'https://pub-ca021456904c4ae3b2fdac6806541cb7.r2.dev',
   },
 });
