@@ -2,6 +2,15 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { BetaAnalyticsDataClient } from '@google-analytics/data';
 
+export interface AnalyticsRealtimeUsers {
+  activeUsers: number;
+}
+
+export interface AnalyticsEvent {
+  name: string;
+  count: number;
+}
+
 export interface AnalyticsOverview {
   totalUsers: number;
   newUsers: number;
@@ -231,9 +240,62 @@ export class AnalyticsService implements OnModuleInit {
     }
   }
 
+  async getRealtimeUsers(): Promise<AnalyticsRealtimeUsers> {
+    if (!this.isConfigured) return { activeUsers: Math.floor(Math.random() * 5) + 1 };
+    try {
+      const [response] = await this.client.runRealtimeReport({
+        property: `properties/${this.propertyId}`,
+        metrics: [{ name: 'activeUsers' }],
+      });
+      const val = Number(response.rows?.[0]?.metricValues?.[0]?.value || 0);
+      return { activeUsers: val };
+    } catch (err) {
+      this.logger.error('GA4 getRealtimeUsers failed:', err.message);
+      return { activeUsers: 0 };
+    }
+  }
+
+  async getEvents(startDate: string, endDate: string): Promise<AnalyticsEvent[]> {
+    if (!this.isConfigured) return this.mockEvents();
+    try {
+      const [response] = await this.client.runReport({
+        property: `properties/${this.propertyId}`,
+        dateRanges: [{ startDate, endDate }],
+        dimensions: [{ name: 'eventName' }],
+        metrics: [{ name: 'eventCount' }],
+        orderBys: [{ metric: { metricName: 'eventCount' }, desc: true }],
+        limit: 10,
+      });
+      return (response.rows || []).map((row) => ({
+        name: row.dimensionValues[0]?.value || 'unknown',
+        count: Number(row.metricValues[0]?.value || 0),
+      }));
+    } catch (err) {
+      this.logger.error('GA4 getEvents failed:', err.message);
+      return this.mockEvents();
+    }
+  }
+
   // ────────────────────────────────────────
   //  MOCK DATA (used when GA4 not yet configured)
   // ────────────────────────────────────────
+
+  /** Convert GA4 date arg like "30daysAgo" or "today" to JS Date */
+  private parseDateArg(arg: string): Date {
+    if (!arg || arg === 'today') return new Date();
+    if (arg === 'yesterday') {
+      const d = new Date();
+      d.setDate(d.getDate() - 1);
+      return d;
+    }
+    const m = arg.match(/^(\d+)daysAgo$/);
+    if (m) {
+      const d = new Date();
+      d.setDate(d.getDate() - parseInt(m[1], 10));
+      return d;
+    }
+    return new Date(arg);
+  }
 
   private mockOverview(): AnalyticsOverview {
     return {
@@ -247,8 +309,8 @@ export class AnalyticsService implements OnModuleInit {
   }
 
   private mockTimeSeries(startDate: string, endDate: string): AnalyticsTimeSeries[] {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    const start = this.parseDateArg(startDate);
+    const end = this.parseDateArg(endDate);
     const days: AnalyticsTimeSeries[] = [];
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
       days.push({
@@ -294,6 +356,17 @@ export class AnalyticsService implements OnModuleInit {
       { country: 'United States', users: 120, sessions: 180 },
       { country: 'Japan', users: 65, sessions: 95 },
       { country: 'South Korea', users: 42, sessions: 58 },
+    ];
+  }
+
+  private mockEvents(): AnalyticsEvent[] {
+    return [
+      { name: 'page_view', count: 8432 },
+      { name: 'scroll', count: 4210 },
+      { name: 'session_start', count: 2156 },
+      { name: 'user_engagement', count: 1980 },
+      { name: 'first_visit', count: 892 },
+      { name: 'click', count: 620 },
     ];
   }
 }

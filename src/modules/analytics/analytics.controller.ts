@@ -85,4 +85,21 @@ export class AnalyticsController {
   ) {
     return this.analyticsService.getCountries(startDate, endDate);
   }
+
+  @Get('realtime')
+  @ApiOperation({ summary: 'Get real-time active users (last 30 min)' })
+  getRealtimeUsers() {
+    return this.analyticsService.getRealtimeUsers();
+  }
+
+  @Get('events')
+  @ApiOperation({ summary: 'Get top events by count' })
+  @ApiQuery({ name: 'startDate', required: false, example: '30daysAgo' })
+  @ApiQuery({ name: 'endDate', required: false, example: 'today' })
+  getEvents(
+    @Query('startDate') startDate = '30daysAgo',
+    @Query('endDate') endDate = 'today',
+  ) {
+    return this.analyticsService.getEvents(startDate, endDate);
+  }
 }
