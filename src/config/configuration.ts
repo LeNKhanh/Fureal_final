@@ -34,4 +34,11 @@ export default () => ({
     ttl: parseInt(process.env.RATE_LIMIT_TTL, 10) || 60,
     limit: parseInt(process.env.RATE_LIMIT_MAX, 10) || 100,
   },
+  r2: {
+    accountId: process.env.R2_ACCOUNT_ID || '',
+    accessKeyId: process.env.R2_ACCESS_KEY_ID || '',
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || '',
+    bucketName: process.env.R2_BUCKET_NAME || 'fureal-models',
+    publicUrl: process.env.R2_PUBLIC_URL || 'https://r2.fureal.store',
+  },
 });

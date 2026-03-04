@@ -23,6 +23,7 @@ import { Payment } from './modules/payments/entities/payment.entity';
 import { Address } from './modules/addresses/entities/address.entity';
 import { InventoryLog } from './modules/inventory-logs/entities/inventory-log.entity';
 import { AuditLog } from './modules/audit-logs/entities/audit-log.entity';
+import { Model3D } from './modules/models-3d/entities/model-3d.entity';
 
 // Feature Modules
 import { AuthModule } from './modules/auth/auth.module';
@@ -37,6 +38,7 @@ import { AddressesModule } from './modules/addresses/addresses.module';
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { HealthModule } from './modules/health/health.module';
 import { AiModule } from './modules/ai/ai.module';
+import { Models3DModule } from './modules/models-3d/models-3d.module';
 
 @Module({
   imports: [
@@ -70,6 +72,7 @@ import { AiModule } from './modules/ai/ai.module';
           Address,
           InventoryLog,
           AuditLog,
+          Model3D,
         ],
         synchronize: false,
         migrationsRun: true, // Auto-run pending migrations on startup
@@ -93,6 +96,7 @@ import { AiModule } from './modules/ai/ai.module';
     AuditLogsModule,
     HealthModule,
     AiModule,
+    Models3DModule,
   ],
   providers: [
     {
