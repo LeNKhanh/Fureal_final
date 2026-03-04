@@ -19,12 +19,17 @@ async function createApp() {
     // Global prefix - IMPORTANT for routing
     app.setGlobalPrefix('api');
 
-    // Parse CORS_ORIGIN as a comma-separated list and echo only the matched
-    // origin in the response header (browsers reject multiple values in one header).
-    const corsOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
+    // Known production origins that should always be allowed
+    const KNOWN_ORIGINS = [
+      'https://www.fureal.store',
+      'https://fureal.store',
+      'https://fureal-fe.vercel.app',
+    ];
+    const envOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
       .split(',')
       .map((o: string) => o.trim())
       .filter(Boolean);
+    const corsOrigins = [...new Set([...envOrigins, ...KNOWN_ORIGINS])];
 
     app.enableCors({
       origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
