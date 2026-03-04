@@ -16,10 +16,17 @@ async function bootstrap() {
   // Passing the raw CORS_ORIGIN string as origin would set all values in one
   // header, which browsers reject. The callback approach returns only the
   // matched origin (or true), which is always a single value.
-  const corsOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
+  // Known production origins that should always be allowed
+  const KNOWN_ORIGINS = [
+    'https://www.fureal.store',
+    'https://fureal.store',
+    'https://fureal-fe.vercel.app',
+  ];
+  const envOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
     .split(',')
     .map((o) => o.trim())
     .filter(Boolean);
+  const corsOrigins = [...new Set([...envOrigins, ...KNOWN_ORIGINS])];
 
   app.enableCors({
     origin: (origin, callback) => {
