@@ -83,136 +83,152 @@ export class AnalyticsService implements OnModuleInit {
 
   async getOverview(startDate: string, endDate: string): Promise<AnalyticsOverview> {
     if (!this.isConfigured) return this.mockOverview();
-
-    const [response] = await this.client.runReport({
-      property: `properties/${this.propertyId}`,
-      dateRanges: [{ startDate, endDate }],
-      metrics: [
-        { name: 'totalUsers' },
-        { name: 'newUsers' },
-        { name: 'sessions' },
-        { name: 'screenPageViews' },
-        { name: 'averageSessionDuration' },
-        { name: 'bounceRate' },
-      ],
-    });
-
-    const row = response.rows?.[0];
-    if (!row) return this.mockOverview();
-
-    return {
-      totalUsers: Number(row.metricValues[0]?.value || 0),
-      newUsers: Number(row.metricValues[1]?.value || 0),
-      sessions: Number(row.metricValues[2]?.value || 0),
-      pageViews: Number(row.metricValues[3]?.value || 0),
-      avgSessionDuration: Number(row.metricValues[4]?.value || 0),
-      bounceRate: Number(row.metricValues[5]?.value || 0),
-    };
+    try {
+      const [response] = await this.client.runReport({
+        property: `properties/${this.propertyId}`,
+        dateRanges: [{ startDate, endDate }],
+        metrics: [
+          { name: 'totalUsers' },
+          { name: 'newUsers' },
+          { name: 'sessions' },
+          { name: 'screenPageViews' },
+          { name: 'averageSessionDuration' },
+          { name: 'bounceRate' },
+        ],
+      });
+      const row = response.rows?.[0];
+      if (!row) return this.mockOverview();
+      return {
+        totalUsers: Number(row.metricValues[0]?.value || 0),
+        newUsers: Number(row.metricValues[1]?.value || 0),
+        sessions: Number(row.metricValues[2]?.value || 0),
+        pageViews: Number(row.metricValues[3]?.value || 0),
+        avgSessionDuration: Number(row.metricValues[4]?.value || 0),
+        bounceRate: Number(row.metricValues[5]?.value || 0),
+      };
+    } catch (err) {
+      this.logger.error('GA4 getOverview failed:', err.message);
+      return this.mockOverview();
+    }
   }
 
   async getTimeSeries(startDate: string, endDate: string): Promise<AnalyticsTimeSeries[]> {
     if (!this.isConfigured) return this.mockTimeSeries(startDate, endDate);
-
-    const [response] = await this.client.runReport({
-      property: `properties/${this.propertyId}`,
-      dateRanges: [{ startDate, endDate }],
-      dimensions: [{ name: 'date' }],
-      metrics: [
-        { name: 'totalUsers' },
-        { name: 'sessions' },
-        { name: 'screenPageViews' },
-      ],
-      orderBys: [{ dimension: { dimensionName: 'date', orderType: 'ALPHANUMERIC' } }],
-    });
-
-    return (response.rows || []).map((row) => ({
-      date: row.dimensionValues[0]?.value || '',
-      users: Number(row.metricValues[0]?.value || 0),
-      sessions: Number(row.metricValues[1]?.value || 0),
-      pageViews: Number(row.metricValues[2]?.value || 0),
-    }));
+    try {
+      const [response] = await this.client.runReport({
+        property: `properties/${this.propertyId}`,
+        dateRanges: [{ startDate, endDate }],
+        dimensions: [{ name: 'date' }],
+        metrics: [
+          { name: 'totalUsers' },
+          { name: 'sessions' },
+          { name: 'screenPageViews' },
+        ],
+        orderBys: [{ dimension: { dimensionName: 'date', orderType: 'ALPHANUMERIC' } }],
+      });
+      return (response.rows || []).map((row) => ({
+        date: row.dimensionValues[0]?.value || '',
+        users: Number(row.metricValues[0]?.value || 0),
+        sessions: Number(row.metricValues[1]?.value || 0),
+        pageViews: Number(row.metricValues[2]?.value || 0),
+      }));
+    } catch (err) {
+      this.logger.error('GA4 getTimeSeries failed:', err.message);
+      return this.mockTimeSeries(startDate, endDate);
+    }
   }
 
   async getTopPages(startDate: string, endDate: string, limit = 10): Promise<AnalyticsTopPage[]> {
     if (!this.isConfigured) return this.mockTopPages();
-
-    const [response] = await this.client.runReport({
-      property: `properties/${this.propertyId}`,
-      dateRanges: [{ startDate, endDate }],
-      dimensions: [{ name: 'pagePath' }, { name: 'pageTitle' }],
-      metrics: [{ name: 'screenPageViews' }, { name: 'totalUsers' }],
-      orderBys: [{ metric: { metricName: 'screenPageViews' }, desc: true }],
-      limit,
-    });
-
-    return (response.rows || []).map((row) => ({
-      path: row.dimensionValues[0]?.value || '',
-      title: row.dimensionValues[1]?.value || '',
-      views: Number(row.metricValues[0]?.value || 0),
-      users: Number(row.metricValues[1]?.value || 0),
-    }));
+    try {
+      const [response] = await this.client.runReport({
+        property: `properties/${this.propertyId}`,
+        dateRanges: [{ startDate, endDate }],
+        dimensions: [{ name: 'pagePath' }, { name: 'pageTitle' }],
+        metrics: [{ name: 'screenPageViews' }, { name: 'totalUsers' }],
+        orderBys: [{ metric: { metricName: 'screenPageViews' }, desc: true }],
+        limit,
+      });
+      return (response.rows || []).map((row) => ({
+        path: row.dimensionValues[0]?.value || '',
+        title: row.dimensionValues[1]?.value || '',
+        views: Number(row.metricValues[0]?.value || 0),
+        users: Number(row.metricValues[1]?.value || 0),
+      }));
+    } catch (err) {
+      this.logger.error('GA4 getTopPages failed:', err.message);
+      return this.mockTopPages();
+    }
   }
 
   async getTrafficSources(startDate: string, endDate: string): Promise<AnalyticsTrafficSource[]> {
     if (!this.isConfigured) return this.mockTrafficSources();
-
-    const [response] = await this.client.runReport({
-      property: `properties/${this.propertyId}`,
-      dateRanges: [{ startDate, endDate }],
-      dimensions: [{ name: 'sessionSource' }, { name: 'sessionMedium' }],
-      metrics: [{ name: 'sessions' }, { name: 'totalUsers' }],
-      orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
-      limit: 10,
-    });
-
-    return (response.rows || []).map((row) => ({
-      source: row.dimensionValues[0]?.value || '(direct)',
-      medium: row.dimensionValues[1]?.value || '(none)',
-      sessions: Number(row.metricValues[0]?.value || 0),
-      users: Number(row.metricValues[1]?.value || 0),
-    }));
+    try {
+      const [response] = await this.client.runReport({
+        property: `properties/${this.propertyId}`,
+        dateRanges: [{ startDate, endDate }],
+        dimensions: [{ name: 'sessionSource' }, { name: 'sessionMedium' }],
+        metrics: [{ name: 'sessions' }, { name: 'totalUsers' }],
+        orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
+        limit: 10,
+      });
+      return (response.rows || []).map((row) => ({
+        source: row.dimensionValues[0]?.value || '(direct)',
+        medium: row.dimensionValues[1]?.value || '(none)',
+        sessions: Number(row.metricValues[0]?.value || 0),
+        users: Number(row.metricValues[1]?.value || 0),
+      }));
+    } catch (err) {
+      this.logger.error('GA4 getTrafficSources failed:', err.message);
+      return this.mockTrafficSources();
+    }
   }
 
   async getDeviceBreakdown(startDate: string, endDate: string): Promise<AnalyticsDeviceBreakdown[]> {
     if (!this.isConfigured) return this.mockDevices();
-
-    const [response] = await this.client.runReport({
-      property: `properties/${this.propertyId}`,
-      dateRanges: [{ startDate, endDate }],
-      dimensions: [{ name: 'deviceCategory' }],
-      metrics: [{ name: 'sessions' }],
-    });
-
-    const rows = response.rows || [];
-    const total = rows.reduce((sum, r) => sum + Number(r.metricValues[0]?.value || 0), 0);
-
-    return rows.map((row) => {
-      const sessions = Number(row.metricValues[0]?.value || 0);
-      return {
-        device: row.dimensionValues[0]?.value || 'unknown',
-        sessions,
-        percentage: total > 0 ? Math.round((sessions / total) * 1000) / 10 : 0,
-      };
-    });
+    try {
+      const [response] = await this.client.runReport({
+        property: `properties/${this.propertyId}`,
+        dateRanges: [{ startDate, endDate }],
+        dimensions: [{ name: 'deviceCategory' }],
+        metrics: [{ name: 'sessions' }],
+      });
+      const rows = response.rows || [];
+      const total = rows.reduce((sum, r) => sum + Number(r.metricValues[0]?.value || 0), 0);
+      return rows.map((row) => {
+        const sessions = Number(row.metricValues[0]?.value || 0);
+        return {
+          device: row.dimensionValues[0]?.value || 'unknown',
+          sessions,
+          percentage: total > 0 ? Math.round((sessions / total) * 1000) / 10 : 0,
+        };
+      });
+    } catch (err) {
+      this.logger.error('GA4 getDeviceBreakdown failed:', err.message);
+      return this.mockDevices();
+    }
   }
 
   async getCountries(startDate: string, endDate: string): Promise<AnalyticsCountry[]> {
     if (!this.isConfigured) return this.mockCountries();
-
-    const [response] = await this.client.runReport({
-      property: `properties/${this.propertyId}`,
-      dateRanges: [{ startDate, endDate }],
-      dimensions: [{ name: 'country' }],
-      metrics: [{ name: 'totalUsers' }, { name: 'sessions' }],
-      orderBys: [{ metric: { metricName: 'totalUsers' }, desc: true }],
-      limit: 10,
-    });
-
-    return (response.rows || []).map((row) => ({
-      country: row.dimensionValues[0]?.value || 'Unknown',
-      users: Number(row.metricValues[0]?.value || 0),
-      sessions: Number(row.metricValues[1]?.value || 0),
-    }));
+    try {
+      const [response] = await this.client.runReport({
+        property: `properties/${this.propertyId}`,
+        dateRanges: [{ startDate, endDate }],
+        dimensions: [{ name: 'country' }],
+        metrics: [{ name: 'totalUsers' }, { name: 'sessions' }],
+        orderBys: [{ metric: { metricName: 'totalUsers' }, desc: true }],
+        limit: 10,
+      });
+      return (response.rows || []).map((row) => ({
+        country: row.dimensionValues[0]?.value || 'Unknown',
+        users: Number(row.metricValues[0]?.value || 0),
+        sessions: Number(row.metricValues[1]?.value || 0),
+      }));
+    } catch (err) {
+      this.logger.error('GA4 getCountries failed:', err.message);
+      return this.mockCountries();
+    }
   }
 
   // ────────────────────────────────────────
