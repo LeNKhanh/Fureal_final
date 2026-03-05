@@ -568,114 +568,147 @@ Chỉ dùng văn bản thuần.
       }
 
       
-      // BƯỚC 4: Build ENHANCED PROMPT với thông tin phong thủy chi tiết
-      const hasSpecificProducts = relevantProducts.length > 0 && (contextInfo.menh || contextInfo.huong || contextInfo.productType);
-      
-      // Thông tin phong thủy chi tiết từ ngày sinh (RÚT GỌN để không làm prompt quá dài)
-      let detailedFengShuiInfo = '';
+      // BƯỚC 4: Xác định giai đoạn hội thoại để xây dựng prompt phù hợp
+      const hasMenh = !!contextInfo.menh;
+      const hasBirthInfo = !!(contextInfo.fengShuiProfile || contextInfo.birthYear);
+
+      // Phát hiện ý định muốn xem sản phẩm / trang trí / mua đồ
+      const currentText = dto.message.toLowerCase();
+      const productIntentKeywords = [
+        'muốn mua', 'gợi ý đồ', 'trang trí', 'nội thất theo mệnh', 'thiết kế phòng',
+        'đồ theo mệnh', 'mua đồ', 'sản phẩm', 'gợi ý', 'tư vấn đồ', 'muốn trang trí',
+        'muốn thiết kế', 'mua sắm', 'đặt đồ', 'chọn đồ', 'đồ phù hợp',
+        'muốn xem', 'cho tôi xem', 'giường', 'sofa', 'bàn', 'tủ', 'kệ',
+      ];
+      const hasProductIntent =
+        productIntentKeywords.some((kw) => currentText.includes(kw)) ||
+        !!contextInfo.productType;
+
+      // ── GIAI ĐOẠN 1: User hỏi mệnh từ năm sinh, chưa nói muốn gì ──
+      const isElementDiscovery = (hasBirthInfo || hasMenh) && !hasProductIntent;
+
+      // ── GIAI ĐOẠN 2: Đã biết mệnh + muốn đồ nội thất ──
+      const isProductSuggestion = hasMenh && hasProductIntent;
+
+      // Thông tin phong thủy ngắn gọn từ ngày sinh
+      let elementSummary = '';
       if (contextInfo.fengShuiProfile) {
         const profile = contextInfo.fengShuiProfile;
-        detailedFengShuiInfo = `
-- Phân tích: ${formatFengShuiProfileForAI(profile)}
-- Màu sắc phù hợp: ${this.getColorAdviceByElement(profile.element).substring(0, 200)}...
-- Lời khuyên độ tuổi: ${this.getAgeGroupAdvice(profile.ageGroup).substring(0, 150)}...`;
+        elementSummary = formatFengShuiProfileForAI(profile);
       }
-      
-      const prompt = `
-Bạn là TRỢ LÝ PHONG THỦY NỘI THẤT FUREAL - Chuyên gia tư vấn thông minh.
+
+      let prompt: string;
+
+      // ════════════════════════════════════════════════
+      // GIAI ĐOẠN 1 — Trả lời mệnh + hỏi ý định
+      // ════════════════════════════════════════════════
+      if (isElementDiscovery) {
+        prompt = `
+Bạn là TRỢ LÝ PHONG THỦY NỘI THẤT FUREAL - thân thiện và ngắn gọn.
 ${conversationHistory}
 
------------------------------------
-SẢN PHẨM CÓ SẴN TRONG HỆ THỐNG (ĐỌC KỸ - ƯU TIÊN CAO)
------------------------------------
+THÔNG TIN PHONG THỦY KHÁCH HÀNG:
+${contextInfo.birthYear ? `- Năm sinh: ${contextInfo.birthYear}` : ''}
+${contextInfo.menh ? `- Mệnh: ${contextInfo.menh}` : ''}
+${contextInfo.gender ? `- Giới tính: ${contextInfo.gender}` : ''}
+${elementSummary ? `- Phân tích: ${elementSummary}` : ''}
+
+MÀU SẮC VÀ CHẤT LIỆU THEO MỆNH ${contextInfo.menh}:
+${this.getColorAdviceByElement(contextInfo.menh)}
+
+CÂU HỎI: "${dto.message}"
+
+YÊU CẦU TRẢ LỜI:
+1. Xác nhận mệnh của họ (1-2 câu ngắn gọn, tự nhiên)
+2. Giải thích rất ngắn ý nghĩa mệnh đó (1-2 câu)
+3. Hỏi họ muốn:
+   - Tư vấn thiết kế phòng theo mệnh (màu sắc, bố trí, phong thủy tổng thể)
+   - Gợi ý đồ nội thất cụ thể theo mệnh (xem sản phẩm phù hợp)
+
+Phong cách: Thân thiện, tự nhiên như người tư vấn thật. KHÔNG liệt kê dài dòng.
+Độ dài: 4-6 câu ngắn gọn.
+TUYỆT ĐỐI KHÔNG dùng emoji, markdown, dấu sao (*), dấu gạch dưới (_).
+Chỉ dùng văn bản thuần.
+`;
+      }
+
+      // ════════════════════════════════════════════════
+      // GIAI ĐOẠN 2 — Gợi ý sản phẩm + giải thích lý do
+      // ════════════════════════════════════════════════
+      else if (isProductSuggestion) {
+        // Chỉ load products khi cần
+        if (!productContext || relevantProducts.length === 0) {
+          relevantProducts = this.filterFromCache({ menh: contextInfo.menh, huong: contextInfo.huong, productType: contextInfo.productType });
+          productContext = relevantProducts.length > 0
+            ? this.buildMinimalProductContext(relevantProducts.slice(0, 8))
+            : this.buildCompactProductContext(this.productCache.slice(0, 5));
+        }
+
+        prompt = `
+Bạn là TRỢ LÝ PHONG THỦY NỘI THẤT FUREAL - chuyên gia tư vấn thực tế.
+${conversationHistory}
+
+THÔNG TIN KHÁCH HÀNG:
+- Mệnh: ${contextInfo.menh}
+${contextInfo.huong ? `- Hướng nhà: ${contextInfo.huong}` : ''}
+${contextInfo.birthYear ? `- Năm sinh: ${contextInfo.birthYear}` : ''}
+${contextInfo.productType ? `- Loại đồ quan tâm: ${contextInfo.productType}` : ''}
+
+MÀU SẮC MỆNH ${contextInfo.menh}: ${this.getColorAdviceByElement(contextInfo.menh)}
+
+DANH SÁCH SẢN PHẨM TRONG HỆ THỐNG (Format: Tên|Giá|Mệnh|Hướng|Link ảnh):
 ${productContext}
 
-QUY TẮC BẮT BUỘC KHI GIỚI THIỆU SẢN PHẨM:
-1. CHỈ được giới thiệu sản phẩm CÓ TRONG DANH SÁCH TRÊN
-2. TUYỆT ĐỐI KHÔNG tự tạo tên sản phẩm mới
-3. TUYỆT ĐỐI KHÔNG tự nghĩ ra giá
-4. TUYỆT ĐỐI KHÔNG tự tạo link ảnh
-5. Nếu KHÔNG CÓ sản phẩm phù hợp trong danh sách → nói rõ "Hiện chưa có sản phẩm ... trong hệ thống"
-6. Mỗi sản phẩm giới thiệu PHẢI có: Tên (từ danh sách), Giá (từ danh sách), Link ảnh (từ danh sách)
+QUY TẮC BẮT BUỘC:
+1. CHỈ giới thiệu sản phẩm có trong danh sách trên
+2. TUYỆT ĐỐI KHÔNG tự tạo tên, giá, link ảnh mới
+3. PHẢI có link ảnh thực tế cho mỗi sản phẩm
 
------------------------------------
-THÔNG TIN KHÁCH HÀNG
------------------------------------
-${contextInfo.menh ? `- Mệnh: ${contextInfo.menh}` : ''}
-${contextInfo.huong ? `- Hướng nhà: ${contextInfo.huong}` : ''}
-${contextInfo.productType ? `- Quan tâm: ${contextInfo.productType}` : ''}
-${contextInfo.birthYear ? `- Năm sinh: ${contextInfo.birthYear} (${new Date().getFullYear() - contextInfo.birthYear} tuổi)` : ''}
-${contextInfo.gender ? `- Giới tính: ${contextInfo.gender}` : ''}
-${detailedFengShuiInfo}
-
------------------------------------
 CÂU HỎI: "${dto.message}"
------------------------------------
 
-${hasSpecificProducts ? `
 YÊU CẦU TRẢ LỜI:
+1. Mở đầu ngắn (1 câu): xác nhận mệnh + loại đồ phù hợp
+2. Gợi ý 3-5 sản phẩm từ danh sách trên theo format này:
 
-1. PHÂN TÍCH PHONG THỦY:
-   ${contextInfo.menh ? `- Giải thích ngắn gọn về mệnh ${contextInfo.menh}\n   - Màu sắc và yếu tố phù hợp` : ''}
-   ${contextInfo.birthYear ? `- Ý nghĩa của năm sinh ${contextInfo.birthYear}` : ''}
+[Tên sản phẩm]
+- Giá: [giá thực tế từ danh sách]đ
+- Tại sao phù hợp với mệnh ${contextInfo.menh}: [giải thích cụ thể: màu sắc, chất liệu, hướng đặt]
+- Hình ảnh: [link ảnh thực tế từ danh sách]
 
-2. GỢI Ý SẢN PHẨM (3-5 sản phẩm từ danh sách trên):
-   BẮT BUỘC phải hiển thị đầy đủ thông tin sau cho mỗi sản phẩm:
+3. Kết: 1-2 câu lời khuyên thêm về bố trí hoặc kết hợp
+4. Hỏi xem họ muốn tìm hiểu thêm gì không
 
-   - Tên sản phẩm (đưa ra tên cụ thể từ danh sách)
-   - Giá: (hiển thị giá thực tế từ danh sách)
-   - Tại sao phù hợp: (giải thích ngắn gọn liên quan đến mệnh/hướng)
-   - Hình ảnh: (BẮT BUỘC đưa ra link ảnh THỰC TẾ từ danh sách, VD: https://example.com/image.jpg)
-
-   Ví dụ format:
-   
-   Giường ngủ gỗ sồi đỏ
-   - Giá: 5,500,000đ
-   - Tại sao phù hợp: Mệnh Mộc, màu đỏ nhạt, chất liệu gỗ tự nhiên phù hợp
-   - Hình ảnh: https://storage.example.com/products/giuong-go-soi-do.jpg
-
-3. LỜI KHUYÊN BỐ TRÍ:
-   - Vị trí đặt sản phẩm trong nhà
-   - Cách kết hợp với nội thất hiện có
-
-4. NGUỒN THAM KHẢO:
-   Để tìm hiểu thêm về phong thủy và mệnh ${contextInfo.menh || 'của bạn'}:
-   
-   Tài liệu tham khảo:
-   - Hiệp hội Phong Thủy Việt Nam: https://phongthuy.vn/cach-xac-dinh-menh
-   - Cẩm nang phong thủy Fureal: https://fureal.com/feng-shui-guide
-   
-   Liên hệ chuyên gia:
-   - Hotline tư vấn miễn phí: 1900-xxxx
-   - Email: fengshui@fureal.com
-
-Độ dài: 200-300 từ.
-TUYỆT ĐỐI KHÔNG sử dụng emoji.
-TUYỆT ĐỐI KHÔNG sử dụng markdown như dấu sao (*), hai dấu sao (**), dấu gạch dưới (_).
-Chỉ dùng văn bản thuần với dấu gạch đầu dòng (-) và số (1, 2, 3).
-BẮT BUỘC phải đưa ra link hình ảnh THỰC TẾ cho mỗi sản phẩm.
-` : `
-YÊU CẦU TRẢ LỜI:
-
-1. Giải thích cần thêm thông tin gì (năm sinh, mệnh, loại sản phẩm)
-2. Giới thiệu 2-3 sản phẩm mẫu từ danh sách với:
-   - Tên sản phẩm cụ thể (từ danh sách)
-   - Giá thực tế
-   - Đặc điểm phong thủy
-   - BẮT BUỘC: Link hình ảnh THỰC TẾ (VD: https://storage.example.com/image.jpg)
-3. Hướng dẫn cách xác định mệnh qua năm sinh
-4. NGUỒN THAM KHẢO:
-   - Cách xác định mệnh: https://phongthuy.vn/cach-xac-dinh-menh
-   - Tư vấn online: https://fureal.com/chat
-   - Hotline: 1900-xxxx
-
-Độ dài: 150-200 từ, thân thiện.
-TUYỆT ĐỐI KHÔNG sử dụng emoji.
-TUYỆT ĐỐI KHÔNG sử dụng markdown như dấu sao (*), hai dấu sao (**), dấu gạch dưới (_).
-Chỉ dùng văn bản thuần với dấu gạch đầu dòng (-) và số (1, 2, 3).
-BẮT BUỘC phải đưa ra link hình ảnh THỰC TẾ cho mỗi sản phẩm.
-`}
+Phong cách: Chuyên nghiệp nhưng thân thiện, giải thích rõ TẠI SAO mỗi món phù hợp.
+Độ dài: 150-250 từ.
+TUYỆT ĐỐI KHÔNG dùng emoji, markdown, dấu sao (*), dấu gạch dưới (_).
+Chỉ dùng văn bản thuần.
 `;
+      }
+
+      // ════════════════════════════════════════════════
+      // GIAI ĐOẠN 3 — Câu hỏi chung, hướng dẫn cơ bản
+      // ════════════════════════════════════════════════
+      else {
+        prompt = `
+Bạn là TRỢ LÝ PHONG THỦY NỘI THẤT FUREAL - thân thiện và hữu ích.
+${conversationHistory}
+
+CÂU HỎI: "${dto.message}"
+
+YÊU CẦU TRẢ LỜI:
+1. Trả lời trực tiếp câu hỏi (nếu là câu hỏi chung về phong thủy/nội thất)
+2. Nếu chưa biết mệnh của họ: hỏi năm sinh để tư vấn chính xác hơn, ví dụ:
+   "Bạn cho tôi biết năm sinh để tôi xác định mệnh và gợi ý đồ nội thất phù hợp nhất nhé!"
+3. Giới thiệu ngắn 2 điều bot có thể giúp:
+   - Xác định mệnh từ năm sinh và tư vấn phong thủy
+   - Gợi ý đồ nội thất phù hợp với mệnh từ hệ thống sản phẩm Fureal
+
+Phong cách: Tự nhiên, thân thiện, như người bạn tư vấn thật.
+Độ dài: 3-5 câu ngắn gọn.
+TUYỆT ĐỐI KHÔNG dùng emoji, markdown, dấu sao (*), dấu gạch dưới (_).
+Chỉ dùng văn bản thuần.
+`;
+      }
 
       return await this.callGeminiAPI(prompt);
     } catch (error) {
