@@ -570,22 +570,36 @@ Chỉ dùng văn bản thuần.
       const hasMenh = !!contextInfo.menh;
       const hasBirthInfo = !!(contextInfo.fengShuiProfile || contextInfo.birthYear);
 
-      // Phát hiện ý định muốn xem sản phẩm / trang trí / mua đồ
+      // Phát hiện ý định: thiết kế phòng vs mua đồ nội thất
       const currentText = dto.message.toLowerCase();
+
+      // Ý định tư vấn BỐ TRÍ / THIẾT KẾ phòng (KHÔNG gợi ý sản phẩm)
+      const designIntentKeywords = [
+        'thiết kế phòng', 'bố trí', 'muốn thiết kế', 'tư vấn thiết kế',
+        'sắp xếp phòng', 'phong thủy phòng', 'bày trí', 'decor phòng',
+        'cách bố trí', 'bố trí phòng',
+      ];
+      const hasDesignIntent = designIntentKeywords.some((kw) => currentText.includes(kw));
+
+      // Ý định MUA ĐỒ / XEM SẢN PHẨM (có gợi ý sản phẩm)
       const productIntentKeywords = [
-        'muốn mua', 'gợi ý đồ', 'trang trí', 'nội thất theo mệnh', 'thiết kế phòng',
-        'đồ theo mệnh', 'mua đồ', 'sản phẩm', 'gợi ý', 'tư vấn đồ', 'muốn trang trí',
-        'muốn thiết kế', 'mua sắm', 'đặt đồ', 'chọn đồ', 'đồ phù hợp',
-        'muốn xem', 'cho tôi xem', 'giường', 'sofa', 'bàn', 'tủ', 'kệ',
+        'muốn mua', 'gợi ý đồ', 'nội thất theo mệnh',
+        'đồ theo mệnh', 'mua đồ', 'sản phẩm', 'tư vấn đồ',
+        'mua sắm', 'đặt đồ', 'chọn đồ', 'đồ phù hợp',
+        'muốn xem', 'cho tôi xem', 'gợi ý nội thất',
+        'giường', 'sofa', 'bàn', 'tủ', 'kệ',
       ];
       const hasProductIntent =
         productIntentKeywords.some((kw) => currentText.includes(kw)) ||
         !!contextInfo.productType;
 
-      // ── GIAI ĐOẠN 1: User hỏi mệnh từ năm sinh, chưa nói muốn gì ──
-      const isElementDiscovery = (hasBirthInfo || hasMenh) && !hasProductIntent;
+      // ── GIAI ĐOẠN 1: User hỏi mệnh, chưa nói muốn gì ──
+      const isElementDiscovery = (hasBirthInfo || hasMenh) && !hasProductIntent && !hasDesignIntent;
 
-      // ── GIAI ĐOẠN 2: Đã biết mệnh + muốn đồ nội thất ──
+      // ── GIAI ĐOẠN 2A: Muốn tư vấn thiết kế phòng (KHÔNG sản phẩm) ──
+      const isDesignAdvice = hasMenh && hasDesignIntent && !hasProductIntent;
+
+      // ── GIAI ĐOẠN 2B: Muốn xem/mua đồ nội thất (CÓ sản phẩm) ──
       const isProductSuggestion = hasMenh && hasProductIntent;
 
       // Thông tin phong thủy ngắn gọn từ ngày sinh
@@ -647,7 +661,53 @@ QUAN TRỌNG:
       }
 
       // ════════════════════════════════════════════════
-      // GIAI ĐOẠN 2 — Gợi ý sản phẩm + giải thích lý do
+      // GIAI ĐOẠN 2A — Tư vấn thiết kế phòng (KHÔNG sản phẩm)
+      // ════════════════════════════════════════════════
+      else if (isDesignAdvice) {
+        const ageAdvice = contextInfo.fengShuiProfile?.ageGroup
+          ? this.getAgeGroupAdvice(contextInfo.fengShuiProfile.ageGroup)
+          : '';
+
+        prompt = `
+Bạn là TRỢ LÝ PHONG THỦY NỘI THẤT FUREAL.
+${conversationHistory}
+
+QUAN TRỌNG VỀ PHONG CÁCH HỘI THOẠI:
+- KHÔNG được chào hỏi lại nếu trong HỘI THOẠI TRƯỚC đã có lời chào.
+- Đi thẳng vào nội dung tư vấn thiết kế.
+
+THÔNG TIN KHÁCH HÀNG:
+- Mệnh: ${contextInfo.menh}
+${contextInfo.huong ? `- Hướng nhà: ${contextInfo.huong}` : ''}
+${contextInfo.birthYear ? `- Năm sinh: ${contextInfo.birthYear}` : ''}
+
+MÀU SẮC MỆNH ${contextInfo.menh}: ${this.getColorAdviceByElement(contextInfo.menh)}
+${contextInfo.huong ? `HƯỚNG NHÀ: ${this.getDirectionAdvice(contextInfo.huong)}` : ''}
+${ageAdvice ? `PHONG CÁCH THEO ĐỘ TUỔI: ${ageAdvice}` : ''}
+
+CÂU HỎI: "${dto.message}"
+
+YÊU CẦU TRẢ LỜI — Tư vấn thiết kế phòng theo phong thủy, gồm các ý (viết tự nhiên):
+- Tone màu chủ đạo cho phòng (tường, sàn, rèm) dựa trên mệnh ${contextInfo.menh}.
+- Hướng đặt bàn làm việc / giường ngủ tốt nhất.
+- Chất liệu nên dùng (gỗ, kim loại, đá...) phù hợp mệnh.
+- Vị trí tránh đặt đồ nặng hoặc gương.
+- Phong cách tổng thể phù hợp (hiện đại, tối giản, cổ điển...).
+
+Cuối cùng hỏi khách có muốn xem gợi ý đồ nội thất cụ thể phù hợp mệnh ${contextInfo.menh} từ cửa hàng Fureal không.
+
+QUAN TRỌNG:
+- TUYỆT ĐỐI KHÔNG gợi ý sản phẩm cụ thể, KHÔNG đưa tên sản phẩm, giá, link ảnh.
+- Chỉ tư vấn về bố trí, màu sắc, chất liệu, hướng đặt.
+- Viết tự nhiên, mạch lạc, không chia mục cứng nhắc.
+- Độ dài: 150-250 từ.
+- TUYỆT ĐỐI KHÔNG dùng emoji, markdown, dấu sao (*), dấu gạch dưới (_).
+- Chỉ dùng văn bản thuần.
+`;
+      }
+
+      // ════════════════════════════════════════════════
+      // GIAI ĐOẠN 2B — Gợi ý sản phẩm + giải thích lý do
       // ════════════════════════════════════════════════
       else if (isProductSuggestion) {
         prompt = `
