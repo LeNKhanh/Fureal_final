@@ -581,26 +581,26 @@ Chỉ dùng văn bản thuần.
       ];
       const hasDesignIntent = designIntentKeywords.some((kw) => currentText.includes(kw));
 
-      // Ý định MUA ĐỒ / XEM SẢN PHẨM (có gợi ý sản phẩm)
+      // Ý định MUA ĐỒ / XEM SẢN PHẨM — chỉ check tin nhắn HIỆN TẠI (không dùng contextInfo.productType từ history)
       const productIntentKeywords = [
         'muốn mua', 'gợi ý đồ', 'nội thất theo mệnh',
         'đồ theo mệnh', 'mua đồ', 'sản phẩm', 'tư vấn đồ',
         'mua sắm', 'đặt đồ', 'chọn đồ', 'đồ phù hợp',
         'muốn xem', 'cho tôi xem', 'gợi ý nội thất',
+        'xem gợi ý', 'gợi ý đồ nội thất',
         'giường', 'sofa', 'bàn', 'tủ', 'kệ',
       ];
-      const hasProductIntent =
-        productIntentKeywords.some((kw) => currentText.includes(kw)) ||
-        !!contextInfo.productType;
+      const hasProductIntentInCurrentMsg =
+        productIntentKeywords.some((kw) => currentText.includes(kw));
 
       // ── GIAI ĐOẠN 1: User hỏi mệnh, chưa nói muốn gì ──
-      const isElementDiscovery = (hasBirthInfo || hasMenh) && !hasProductIntent && !hasDesignIntent;
+      const isElementDiscovery = (hasBirthInfo || hasMenh) && !hasProductIntentInCurrentMsg && !hasDesignIntent;
 
-      // ── GIAI ĐOẠN 2A: Muốn tư vấn thiết kế phòng (KHÔNG sản phẩm) ──
-      const isDesignAdvice = hasMenh && hasDesignIntent && !hasProductIntent;
+      // ── GIAI ĐOẠN 2A: Muốn tư vấn thiết kế phòng — ƯU TIÊN CAO hơn sản phẩm ──
+      const isDesignAdvice = hasMenh && hasDesignIntent;
 
-      // ── GIAI ĐOẠN 2B: Muốn xem/mua đồ nội thất (CÓ sản phẩm) ──
-      const isProductSuggestion = hasMenh && hasProductIntent;
+      // ── GIAI ĐOẠN 2B: Muốn xem/mua đồ nội thất (CÓ sản phẩm) — chỉ khi KHÔNG có design intent ──
+      const isProductSuggestion = hasMenh && hasProductIntentInCurrentMsg && !hasDesignIntent;
 
       // Thông tin phong thủy ngắn gọn từ ngày sinh
       let elementSummary = '';
