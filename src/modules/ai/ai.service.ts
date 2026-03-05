@@ -616,44 +616,33 @@ ${conversationHistory}
 QUAN TRỌNG VỀ PHONG CÁCH HỘI THOẠI:
 - KHÔNG được chào hỏi lại ("Xin chào", "Chào bạn", "Rất vui"...) nếu trong HỘI THOẠI TRƯỚC đã có lời chào.
 - Đi thẳng vào nội dung phân tích.
+- Viết TỰ NHIÊN như đang trò chuyện, KHÔNG chia thành các mục cứng nhắc (1, 2, 3, 4...).
 
-THÔNG TIN PHONG THỦY KHÁCH HÀNG:
+DỮ LIỆU PHONG THỦY (dùng để trả lời, KHÔNG copy nguyên):
 ${elementSummary}
-
-MÀU SẮC PHÙ HỢP MỆNH ${contextInfo.menh}:
 ${this.getColorAdviceByElement(contextInfo.menh)}
-
-${birthYearAdvice ? `CON GIÁP: ${birthYearAdvice}` : ''}
-${ageAdvice ? `LỜI KHUYÊN THEO ĐỘ TUỔI: ${ageAdvice}` : ''}
+${birthYearAdvice ? `${birthYearAdvice}` : ''}
+${ageAdvice ? `${ageAdvice}` : ''}
 
 CÂU HỎI: "${dto.message}"
 
-YÊU CẦU TRẢ LỜI — PHÂN TÍCH ĐẦY ĐỦ theo 4 mục sau:
+YÊU CẦU TRẢ LỜI:
+Viết một đoạn văn tự nhiên, mạch lạc gồm các ý sau (KHÔNG đánh số, KHÔNG chia mục):
+- Xác nhận mệnh gì, nạp âm (niên mệnh) là gì, tính cách người mệnh này.
+- Năm sinh thuộc cung gì, nhóm Đông/Tây tứ mệnh. Hướng tốt nhất cho họ.
+- Màu sắc hợp mệnh (màu chủ đạo + màu hỗ trợ, giải thích tại sao). Màu nên tránh.
+- Ở độ tuổi này nên ưu tiên phong cách nội thất nào.
 
-1. PHÂN TÍCH PHONG THỦY:
-   - Xác nhận mệnh, nạp âm (niên mệnh), tính cách mệnh này.
-   - Năm sinh thuộc cung gì, nhóm gì (Đông/Tây tứ mệnh). Hướng tốt nhất.
-
-2. MÀU SẮC PHÙ HỢP:
-   - Màu chủ đạo hợp mệnh, các màu hỗ trợ (giải thích hành tương sinh).
-   - Màu nên tránh và lý do.
-
-3. GỢI Ý THEO ĐỘ TUỔI:
-   - Ưu tiên phong cách thiết kế nội thất phù hợp tuổi (hiện đại, cổ điển, tối giản...).
-   - Đề xuất không gian và năng lượng.
-
-4. HỎI Ý ĐỊNH:
-   Cuối cùng hỏi khách muốn:
-   a) Tư vấn cách bố trí, thiết kế phòng theo mệnh ${contextInfo.menh}
-   b) Gợi ý đồ nội thất phù hợp với mệnh ${contextInfo.menh} từ cửa hàng Fureal
+Sau phần phân tích, HỎI KHÁCH muốn tìm hiểu thêm về:
+a) Tư vấn cách bố trí, thiết kế phòng theo phong thủy mệnh ${contextInfo.menh}
+b) Xem gợi ý đồ nội thất phù hợp với mệnh ${contextInfo.menh} từ cửa hàng Fureal
 
 QUAN TRỌNG:
-- KHÔNG gợi ý sản phẩm cụ thể ở bước này.
-- KHÔNG đưa ra link ảnh.
-- Trình bày thông tin ĐẦY ĐỦ, CHI TIẾT, có số liệu cụ thể.
+- KHÔNG gợi ý sản phẩm cụ thể, KHÔNG đưa link ảnh.
+- Thông tin ĐẦY ĐỦ, CHI TIẾT nhưng viết tự nhiên, không liệt kê khô khan.
 - Độ dài: 180-280 từ.
 - TUYỆT ĐỐI KHÔNG dùng emoji, markdown, dấu sao (*), dấu gạch dưới (_).
-- Chỉ dùng văn bản thuần với dấu gạch đầu dòng (-) và số.
+- Chỉ dùng văn bản thuần, dấu gạch đầu dòng (-) khi cần.
 `;
       }
 
