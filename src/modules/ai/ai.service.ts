@@ -532,7 +532,6 @@ Chỉ dùng văn bản thuần.
       // BƯỚC 2: Sử dụng IN-MEMORY CACHE thay vì query DB - Giảm từ 1500ms → 5ms
       let productContext = '';
       let relevantProducts = [];
-      let hasNoMatchingProducts = false;  // Flag để biết có sản phẩm hay không
       
       if (contextInfo.menh || contextInfo.huong || contextInfo.productType) {
         // TỐI ƯU: Lấy từ cache thay vì DB query
@@ -544,7 +543,6 @@ Chỉ dùng văn bản thuần.
           productContext = this.buildMinimalProductContext(relevantProducts.slice(0, 8));
         } else if (contextInfo.productType) {
           // Nếu user hỏi loại sản phẩm cụ thể nhưng không tìm thấy
-          hasNoMatchingProducts = true;
           productContext = `KHÔNG TÌM THẤY sản phẩm loại "${contextInfo.productType}" trong hệ thống.\n\nCác sản phẩm khác có sẵn:`;
           relevantProducts = this.productCache.slice(0, 5);
           productContext += '\n' + this.buildCompactProductContext(relevantProducts);
@@ -600,35 +598,62 @@ Chỉ dùng văn bản thuần.
       let prompt: string;
 
       // ════════════════════════════════════════════════
-      // GIAI ĐOẠN 1 — Trả lời mệnh + hỏi ý định
+      // GIAI ĐOẠN 1 — Phân tích phong thủy đầy đủ + hỏi ý định
       // ════════════════════════════════════════════════
       if (isElementDiscovery) {
+        // Chuẩn bị lời khuyên theo độ tuổi
+        const ageAdvice = contextInfo.fengShuiProfile?.ageGroup
+          ? this.getAgeGroupAdvice(contextInfo.fengShuiProfile.ageGroup)
+          : '';
+        const birthYearAdvice = contextInfo.birthYear
+          ? this.getBirthYearAdvice(contextInfo.birthYear)
+          : '';
+
         prompt = `
-Bạn là TRỢ LÝ PHONG THỦY NỘI THẤT FUREAL - thân thiện và ngắn gọn.
+Bạn là TRỢ LÝ PHONG THỦY NỘI THẤT FUREAL.
 ${conversationHistory}
 
-THÔNG TIN PHONG THỦY KHÁCH HÀNG:
-${contextInfo.birthYear ? `- Năm sinh: ${contextInfo.birthYear}` : ''}
-${contextInfo.menh ? `- Mệnh: ${contextInfo.menh}` : ''}
-${contextInfo.gender ? `- Giới tính: ${contextInfo.gender}` : ''}
-${elementSummary ? `- Phân tích: ${elementSummary}` : ''}
+QUAN TRỌNG VỀ PHONG CÁCH HỘI THOẠI:
+- KHÔNG được chào hỏi lại ("Xin chào", "Chào bạn", "Rất vui"...) nếu trong HỘI THOẠI TRƯỚC đã có lời chào.
+- Đi thẳng vào nội dung phân tích.
 
-MÀU SẮC VÀ CHẤT LIỆU THEO MỆNH ${contextInfo.menh}:
+THÔNG TIN PHONG THỦY KHÁCH HÀNG:
+${elementSummary}
+
+MÀU SẮC PHÙ HỢP MỆNH ${contextInfo.menh}:
 ${this.getColorAdviceByElement(contextInfo.menh)}
+
+${birthYearAdvice ? `CON GIÁP: ${birthYearAdvice}` : ''}
+${ageAdvice ? `LỜI KHUYÊN THEO ĐỘ TUỔI: ${ageAdvice}` : ''}
 
 CÂU HỎI: "${dto.message}"
 
-YÊU CẦU TRẢ LỜI:
-1. Xác nhận mệnh của họ (1-2 câu ngắn gọn, tự nhiên)
-2. Giải thích rất ngắn ý nghĩa mệnh đó (1-2 câu)
-3. Hỏi họ muốn:
-   - Tư vấn thiết kế phòng theo mệnh (màu sắc, bố trí, phong thủy tổng thể)
-   - Gợi ý đồ nội thất cụ thể theo mệnh (xem sản phẩm phù hợp)
+YÊU CẦU TRẢ LỜI — PHÂN TÍCH ĐẦY ĐỦ theo 4 mục sau:
 
-Phong cách: Thân thiện, tự nhiên như người tư vấn thật. KHÔNG liệt kê dài dòng.
-Độ dài: 4-6 câu ngắn gọn.
-TUYỆT ĐỐI KHÔNG dùng emoji, markdown, dấu sao (*), dấu gạch dưới (_).
-Chỉ dùng văn bản thuần.
+1. PHÂN TÍCH PHONG THỦY:
+   - Xác nhận mệnh, nạp âm (niên mệnh), tính cách mệnh này.
+   - Năm sinh thuộc cung gì, nhóm gì (Đông/Tây tứ mệnh). Hướng tốt nhất.
+
+2. MÀU SẮC PHÙ HỢP:
+   - Màu chủ đạo hợp mệnh, các màu hỗ trợ (giải thích hành tương sinh).
+   - Màu nên tránh và lý do.
+
+3. GỢI Ý THEO ĐỘ TUỔI:
+   - Ưu tiên phong cách thiết kế nội thất phù hợp tuổi (hiện đại, cổ điển, tối giản...).
+   - Đề xuất không gian và năng lượng.
+
+4. HỎI Ý ĐỊNH:
+   Cuối cùng hỏi khách muốn:
+   a) Tư vấn cách bố trí, thiết kế phòng theo mệnh ${contextInfo.menh}
+   b) Gợi ý đồ nội thất phù hợp với mệnh ${contextInfo.menh} từ cửa hàng Fureal
+
+QUAN TRỌNG:
+- KHÔNG gợi ý sản phẩm cụ thể ở bước này.
+- KHÔNG đưa ra link ảnh.
+- Trình bày thông tin ĐẦY ĐỦ, CHI TIẾT, có số liệu cụ thể.
+- Độ dài: 180-280 từ.
+- TUYỆT ĐỐI KHÔNG dùng emoji, markdown, dấu sao (*), dấu gạch dưới (_).
+- Chỉ dùng văn bản thuần với dấu gạch đầu dòng (-) và số.
 `;
       }
 
@@ -636,17 +661,13 @@ Chỉ dùng văn bản thuần.
       // GIAI ĐOẠN 2 — Gợi ý sản phẩm + giải thích lý do
       // ════════════════════════════════════════════════
       else if (isProductSuggestion) {
-        // Chỉ load products khi cần
-        if (!productContext || relevantProducts.length === 0) {
-          relevantProducts = this.filterFromCache({ menh: contextInfo.menh, huong: contextInfo.huong, productType: contextInfo.productType });
-          productContext = relevantProducts.length > 0
-            ? this.buildMinimalProductContext(relevantProducts.slice(0, 8))
-            : this.buildCompactProductContext(this.productCache.slice(0, 5));
-        }
-
         prompt = `
-Bạn là TRỢ LÝ PHONG THỦY NỘI THẤT FUREAL - chuyên gia tư vấn thực tế.
+Bạn là TRỢ LÝ PHONG THỦY NỘI THẤT FUREAL.
 ${conversationHistory}
+
+QUAN TRỌNG VỀ PHONG CÁCH HỘI THOẠI:
+- KHÔNG được chào hỏi lại ("Xin chào", "Chào bạn", "Rất vui"...) nếu trong HỘI THOẠI TRƯỚC đã có lời chào.
+- Đi thẳng vào nội dung gợi ý sản phẩm.
 
 THÔNG TIN KHÁCH HÀNG:
 - Mệnh: ${contextInfo.menh}
@@ -690,20 +711,23 @@ Chỉ dùng văn bản thuần.
       // ════════════════════════════════════════════════
       else {
         prompt = `
-Bạn là TRỢ LÝ PHONG THỦY NỘI THẤT FUREAL - thân thiện và hữu ích.
+Bạn là TRỢ LÝ PHONG THỦY NỘI THẤT FUREAL.
 ${conversationHistory}
+
+QUAN TRỌNG VỀ PHONG CÁCH HỘI THOẠI:
+- KHÔNG được chào hỏi lại ("Xin chào", "Chào bạn", "Rất vui"...) nếu trong HỘI THOẠI TRƯỚC đã có lời chào.
+- Nếu đây là tin nhắn đầu tiên thì có thể chào ngắn gọn 1 lần.
 
 CÂU HỎI: "${dto.message}"
 
 YÊU CẦU TRẢ LỜI:
 1. Trả lời trực tiếp câu hỏi (nếu là câu hỏi chung về phong thủy/nội thất)
-2. Nếu chưa biết mệnh của họ: hỏi năm sinh để tư vấn chính xác hơn, ví dụ:
-   "Bạn cho tôi biết năm sinh để tôi xác định mệnh và gợi ý đồ nội thất phù hợp nhất nhé!"
+2. Nếu chưa biết mệnh của họ: hỏi năm sinh để tư vấn chính xác hơn
 3. Giới thiệu ngắn 2 điều bot có thể giúp:
    - Xác định mệnh từ năm sinh và tư vấn phong thủy
    - Gợi ý đồ nội thất phù hợp với mệnh từ hệ thống sản phẩm Fureal
 
-Phong cách: Tự nhiên, thân thiện, như người bạn tư vấn thật.
+Phong cách: Tự nhiên, thân thiện.
 Độ dài: 3-5 câu ngắn gọn.
 TUYỆT ĐỐI KHÔNG dùng emoji, markdown, dấu sao (*), dấu gạch dưới (_).
 Chỉ dùng văn bản thuần.
