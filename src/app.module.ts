@@ -24,6 +24,7 @@ import { Address } from './modules/addresses/entities/address.entity';
 import { InventoryLog } from './modules/inventory-logs/entities/inventory-log.entity';
 import { AuditLog } from './modules/audit-logs/entities/audit-log.entity';
 import { Model3D } from './modules/models-3d/entities/model-3d.entity';
+import { Partner } from './modules/partners/entities/partner.entity';
 
 // Feature Modules
 import { AuthModule } from './modules/auth/auth.module';
@@ -40,6 +41,7 @@ import { HealthModule } from './modules/health/health.module';
 import { AiModule } from './modules/ai/ai.module';
 import { Models3DModule } from './modules/models-3d/models-3d.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { PartnersModule } from './modules/partners/partners.module';
 
 @Module({
   imports: [
@@ -74,6 +76,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
           InventoryLog,
           AuditLog,
           Model3D,
+          Partner,
         ],
         synchronize: false,
         migrationsRun: true, // Auto-run pending migrations on startup
@@ -99,6 +102,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
     AiModule,
     Models3DModule,
     AnalyticsModule,
+    PartnersModule,
   ],
   providers: [
     {
