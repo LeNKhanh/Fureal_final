@@ -581,14 +581,18 @@ Chỉ dùng văn bản thuần.
       ];
       const hasDesignIntent = designIntentKeywords.some((kw) => currentText.includes(kw));
 
-      // Ý định MUA ĐỒ / XEM SẢN PHẨM — chỉ check tin nhắn HIỆN TẠI (không dùng contextInfo.productType từ history)
+      // Ý định MUA ĐỒ / XEM SẢN PHẨM — chỉ check tin nhắn HIỆN TẠI
+      // Keywords ngắn để match linh hoạt (design intent đã có priority nên an toàn)
       const productIntentKeywords = [
-        'muốn mua', 'gợi ý đồ', 'nội thất theo mệnh',
-        'đồ theo mệnh', 'mua đồ', 'sản phẩm', 'tư vấn đồ',
-        'mua sắm', 'đặt đồ', 'chọn đồ', 'đồ phù hợp',
-        'muốn xem', 'cho tôi xem', 'gợi ý nội thất',
-        'xem gợi ý', 'gợi ý đồ nội thất',
-        'giường', 'sofa', 'bàn', 'tủ', 'kệ',
+        // Keyword ngắn, dễ match
+        'gợi ý', 'nội thất', 'đồ nội thất', 'món đồ', 'cửa hàng',
+        'sản phẩm', 'muốn mua', 'mua đồ', 'mua sắm',
+        // Keyword cụ thể
+        'đồ theo mệnh', 'nội thất theo mệnh', 'tư vấn đồ',
+        'đặt đồ', 'chọn đồ', 'đồ phù hợp', 'muốn xem', 'cho tôi xem',
+        'xem gợi ý', 'trang trí đồ', 'muốn trang trí',
+        // Tên loại sản phẩm cụ thể
+        'giường', 'sofa', 'bàn', 'tủ', 'kệ', 'ghế', 'đèn', 'tranh',
       ];
       const hasProductIntentInCurrentMsg =
         productIntentKeywords.some((kw) => currentText.includes(kw));
