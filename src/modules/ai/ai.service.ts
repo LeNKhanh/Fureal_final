@@ -19,7 +19,9 @@ export class AiService implements OnModuleInit {
   private readonly logger = new Logger(AiService.name);
   private apiKey: string;
   private readonly API_ENDPOINT =
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+  private readonly STREAM_ENDPOINT =
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent';
   
   // IN-MEMORY CACHE: Lưu top products để tránh query DB mỗi lần
   private productCache: Product[] = [];
@@ -161,6 +163,10 @@ export class AiService implements OnModuleInit {
               ],
             },
           ],
+          generationConfig: {
+            maxOutputTokens: 1024,
+            temperature: 0.7,
+          },
         }),
       });
 
@@ -211,6 +217,268 @@ export class AiService implements OnModuleInit {
       this.logger.error('Error calling Gemini API:', error);
       throw error;
     }
+  }
+
+  /**
+   * Call Gemini API streaming — trả về async generator yield từng text chunk
+   */
+  async *callGeminiAPIStream(prompt: string): AsyncGenerator<string> {
+    const url = `${this.STREAM_ENDPOINT}?key=${this.apiKey}&alt=sse`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          maxOutputTokens: 1024,
+          temperature: 0.7,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      if (response.status === 429) {
+        throw new BadRequestException(
+          'Đã vượt quá giới hạn số lần sử dụng AI. Vui lòng thử lại sau.',
+        );
+      }
+      throw new Error(`Gemini stream error: ${response.status}`);
+    }
+
+    const reader = response.body as any;
+    // Node 18+ fetch returns a ReadableStream; use async iteration
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    for await (const chunk of reader) {
+      buffer += typeof chunk === 'string' ? chunk : decoder.decode(chunk, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const jsonStr = line.slice(6).trim();
+        if (!jsonStr) continue;
+        try {
+          const parsed = JSON.parse(jsonStr);
+          const text = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) yield text;
+        } catch {
+          // skip malformed JSON
+        }
+      }
+    }
+
+    // Process remaining buffer
+    if (buffer.startsWith('data: ')) {
+      const jsonStr = buffer.slice(6).trim();
+      try {
+        const parsed = JSON.parse(jsonStr);
+        const text = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) yield text;
+      } catch {}
+    }
+  }
+
+  /**
+   * Streaming chat — builds prompt giống chat() nhưng trả streaming chunks
+   */
+  async *chatStream(dto: ChatDto): AsyncGenerator<string> {
+    this.ensureModelInitialized();
+    // Reuse toàn bộ logic build prompt từ chat()
+    const prompt = this.buildChatPrompt(dto);
+    yield* this.callGeminiAPIStream(prompt);
+  }
+
+  /**
+   * Tách logic build prompt ra method riêng để cả chat() và chatStream() dùng chung
+   */
+  private buildChatPrompt(dto: ChatDto): string {
+    const fullConversation = [
+      ...(dto.conversationHistory || []),
+      { role: 'user', content: dto.message },
+    ];
+    const contextInfo = this.extractProductContext(fullConversation);
+    this.logger.log(`[CHAT] Context extracted: ${JSON.stringify(contextInfo)}`);
+
+    let productContext = '';
+    let relevantProducts = [];
+
+    if (contextInfo.menh || contextInfo.huong || contextInfo.productType) {
+      relevantProducts = this.filterFromCache(contextInfo);
+      this.logger.log(`[CHAT] Cache returned ${relevantProducts.length} products`);
+      if (relevantProducts.length > 0) {
+        productContext = this.buildMinimalProductContext(relevantProducts.slice(0, 8));
+      } else if (contextInfo.productType) {
+        productContext = `KHÔNG TÌM THẤY sản phẩm loại "${contextInfo.productType}" trong hệ thống.\n\nCác sản phẩm khác có sẵn:`;
+        relevantProducts = this.productCache.slice(0, 5);
+        productContext += '\n' + this.buildCompactProductContext(relevantProducts);
+      }
+    }
+
+    if (!productContext) {
+      relevantProducts = this.productCache.slice(0, 5);
+      productContext = this.buildCompactProductContext(relevantProducts);
+    }
+
+    let conversationHistory = '';
+    if (dto.conversationHistory && dto.conversationHistory.length > 0) {
+      const recent = dto.conversationHistory.slice(-4);
+      conversationHistory =
+        '\nHỘI THOẠI TRƯỚC:\n' +
+        recent.map((msg) => `${msg.role === 'user' ? 'Khách' : 'Bot'}: ${msg.content}`).join('\n') +
+        '\n';
+    }
+
+    const hasMenh = !!contextInfo.menh;
+    const hasBirthInfo = !!(contextInfo.fengShuiProfile || contextInfo.birthYear);
+    const currentText = dto.message.toLowerCase();
+
+    const designIntentKeywords = [
+      'thiết kế phòng', 'bố trí', 'muốn thiết kế', 'tư vấn thiết kế',
+      'sắp xếp phòng', 'phong thủy phòng', 'bày trí', 'decor phòng',
+      'cách bố trí', 'bố trí phòng',
+    ];
+    const hasDesignIntent = designIntentKeywords.some((kw) => currentText.includes(kw));
+
+    const productIntentKeywords = [
+      'gợi ý', 'nội thất', 'đồ nội thất', 'món đồ', 'cửa hàng',
+      'sản phẩm', 'muốn mua', 'mua đồ', 'mua sắm',
+      'đồ theo mệnh', 'nội thất theo mệnh', 'tư vấn đồ',
+      'đặt đồ', 'chọn đồ', 'đồ phù hợp', 'muốn xem', 'cho tôi xem',
+      'xem gợi ý', 'trang trí đồ', 'muốn trang trí',
+      'giường', 'sofa', 'bàn', 'tủ', 'kệ', 'ghế', 'đèn', 'tranh',
+    ];
+    const hasProductIntentInCurrentMsg = productIntentKeywords.some((kw) => currentText.includes(kw));
+
+    const isElementDiscovery = (hasBirthInfo || hasMenh) && !hasProductIntentInCurrentMsg && !hasDesignIntent;
+    const isDesignAdvice = hasMenh && hasDesignIntent;
+    const isProductSuggestion = hasMenh && hasProductIntentInCurrentMsg && !hasDesignIntent;
+
+    let elementSummary = '';
+    if (contextInfo.fengShuiProfile) {
+      elementSummary = formatFengShuiProfileForAI(contextInfo.fengShuiProfile);
+    }
+
+    if (isElementDiscovery) {
+      const ageAdvice = contextInfo.fengShuiProfile?.ageGroup
+        ? this.getAgeGroupAdvice(contextInfo.fengShuiProfile.ageGroup)
+        : '';
+      const birthYearAdvice = contextInfo.birthYear
+        ? this.getBirthYearAdvice(contextInfo.birthYear)
+        : '';
+
+      return `
+Bạn là TRỢ LÝ PHONG THỦY NỘI THẤT FUREAL.
+${conversationHistory}
+
+QUAN TRỌNG VỀ PHONG CÁCH HỘI THOẠI:
+- KHÔNG được chào hỏi lại nếu trong HỘI THOẠI TRƯỚC đã có lời chào.
+- Đi thẳng vào nội dung phân tích.
+- Viết TỰ NHIÊN như đang trò chuyện.
+
+DỮ LIỆU PHONG THỦY:
+${elementSummary}
+${this.getColorAdviceByElement(contextInfo.menh)}
+${birthYearAdvice ? birthYearAdvice : ''}
+${ageAdvice ? ageAdvice : ''}
+
+CÂU HỎI: "${dto.message}"
+
+YÊU CẦU TRẢ LỜI:
+Viết đoạn văn tự nhiên, mạch lạc gồm:
+- Xác nhận mệnh, nạp âm, tính cách.
+- Cung, nhóm Đông/Tây tứ mệnh, hướng tốt.
+- Màu sắc hợp mệnh. Màu nên tránh.
+- Phong cách nội thất phù hợp tuổi.
+
+Sau phân tích, HỎI muốn:
+a) Tư vấn bố trí, thiết kế phòng
+b) Xem gợi ý đồ nội thất từ cửa hàng Fureal
+
+Độ dài: 180-280 từ.
+TUYỆT ĐỐI KHÔNG dùng emoji, markdown, dấu sao (*), dấu gạch dưới (_).
+`;
+    }
+
+    if (isDesignAdvice) {
+      const ageAdvice = contextInfo.fengShuiProfile?.ageGroup
+        ? this.getAgeGroupAdvice(contextInfo.fengShuiProfile.ageGroup)
+        : '';
+
+      return `
+Bạn là TRỢ LÝ PHONG THỦY NỘI THẤT FUREAL.
+${conversationHistory}
+
+THÔNG TIN KHÁCH HÀNG:
+- Mệnh: ${contextInfo.menh}
+${contextInfo.huong ? `- Hướng nhà: ${contextInfo.huong}` : ''}
+${contextInfo.birthYear ? `- Năm sinh: ${contextInfo.birthYear}` : ''}
+
+MÀU SẮC MỆNH ${contextInfo.menh}: ${this.getColorAdviceByElement(contextInfo.menh)}
+${contextInfo.huong ? `HƯỚNG NHÀ: ${this.getDirectionAdvice(contextInfo.huong)}` : ''}
+${ageAdvice ? `PHONG CÁCH THEO ĐỘ TUỔI: ${ageAdvice}` : ''}
+
+CÂU HỎI: "${dto.message}"
+
+Tư vấn thiết kế phòng theo phong thủy:
+- Tone màu chủ đạo.
+- Hướng đặt bàn/giường.
+- Chất liệu phù hợp.
+- Vị trí tránh.
+- Phong cách tổng thể.
+
+Cuối cùng hỏi muốn xem gợi ý đồ nội thất cụ thể không.
+
+Độ dài: 150-250 từ.
+TUYỆT ĐỐI KHÔNG dùng emoji, markdown, dấu sao (*), dấu gạch dưới (_).
+`;
+    }
+
+    if (isProductSuggestion) {
+      return `
+Bạn là TRỢ LÝ PHONG THỦY NỘI THẤT FUREAL.
+${conversationHistory}
+
+THÔNG TIN KHÁCH HÀNG:
+- Mệnh: ${contextInfo.menh}
+${contextInfo.huong ? `- Hướng nhà: ${contextInfo.huong}` : ''}
+${contextInfo.birthYear ? `- Năm sinh: ${contextInfo.birthYear}` : ''}
+${contextInfo.productType ? `- Loại đồ quan tâm: ${contextInfo.productType}` : ''}
+
+MÀU SẮC MỆNH ${contextInfo.menh}: ${this.getColorAdviceByElement(contextInfo.menh)}
+
+DANH SÁCH SẢN PHẨM (Format: Tên|Giá|Mệnh|Hướng|Link ảnh):
+${productContext}
+
+QUY TẮC: CHỈ giới thiệu sản phẩm có trong danh sách trên. PHẢI có link ảnh.
+
+CÂU HỎI: "${dto.message}"
+
+Gợi ý 3-5 sản phẩm, mỗi sản phẩm:
+[Tên sản phẩm]
+- Giá: [giá]đ
+- Tại sao phù hợp: [giải thích]
+- Hình ảnh: [link ảnh]
+
+Độ dài: 150-250 từ.
+TUYỆT ĐỐI KHÔNG dùng emoji, markdown, dấu sao (*), dấu gạch dưới (_).
+`;
+    }
+
+    // Default — general chat
+    return `
+Bạn là TRỢ LÝ PHONG THỦY NỘI THẤT FUREAL.
+${conversationHistory}
+
+CÂU HỎI: "${dto.message}"
+
+Trả lời trực tiếp. Nếu chưa biết mệnh thì hỏi năm sinh.
+Giới thiệu ngắn 2 điều bot giúp được.
+
+Độ dài: 3-5 câu. KHÔNG dùng emoji, markdown.
+`;
   }
 
   /**
@@ -514,288 +782,19 @@ Chỉ dùng văn bản thuần.
   }
 
   /**
-   * Chatbot hỗ trợ khách hàng - Context-aware với conversation history và database sản phẩm thực tế
+   * Chatbot hỗ trợ khách hàng - Context-aware (dùng buildChatPrompt chung)
    */
   async chat(dto: ChatDto): Promise<string> {
     this.ensureModelInitialized();
 
     try {
-      // BƯỚC 1: Phân tích ngữ cảnh để phát hiện mệnh, hướng, loại sản phẩm
-      const fullConversation = [
-        ...(dto.conversationHistory || []),
-        { role: 'user', content: dto.message }
-      ];
-      
-      const contextInfo = this.extractProductContext(fullConversation);
-      this.logger.log(`[CHAT] Context extracted: ${JSON.stringify(contextInfo)}`);
-      
-      // BƯỚC 2: Sử dụng IN-MEMORY CACHE thay vì query DB - Giảm từ 1500ms → 5ms
-      let productContext = '';
-      let relevantProducts = [];
-      
-      if (contextInfo.menh || contextInfo.huong || contextInfo.productType) {
-        // TỐI ƯU: Lấy từ cache thay vì DB query
-        relevantProducts = this.filterFromCache(contextInfo);
-        this.logger.log(`[CHAT] Cache returned ${relevantProducts.length} products`);
-        
-        if (relevantProducts.length > 0) {
-          // SỬ DỤNG MINIMAL FORMAT: Tên|Giá|Mệnh|Hướng|Link_ảnh
-          productContext = this.buildMinimalProductContext(relevantProducts.slice(0, 8));
-        } else if (contextInfo.productType) {
-          // Nếu user hỏi loại sản phẩm cụ thể nhưng không tìm thấy
-          productContext = `KHÔNG TÌM THẤY sản phẩm loại "${contextInfo.productType}" trong hệ thống.\n\nCác sản phẩm khác có sẵn:`;
-          relevantProducts = this.productCache.slice(0, 5);
-          productContext += '\n' + this.buildCompactProductContext(relevantProducts);
-        }
-      }
-      
-      // Nếu không có yêu cầu cụ thể, lấy từ cache mẫu
-      if (!productContext) {
-        relevantProducts = this.productCache.slice(0, 5);
-        productContext = this.buildCompactProductContext(relevantProducts);
-        this.logger.log(`[CHAT] Using ${relevantProducts.length} sample products from cache`);
-      }
-
-      // BƯỚC 3: Xây dựng lịch sử hội thoại
-      let conversationHistory = '';
-      if (dto.conversationHistory && dto.conversationHistory.length > 0) {
-        const recent = dto.conversationHistory.slice(-4);
-        conversationHistory = '\nHỘI THOẠI TRƯỚC:\n' + 
-          recent.map(msg => `${msg.role === 'user' ? 'Khách' : 'Bot'}: ${msg.content}`).join('\n') + 
-          '\n';
-      }
-
-      
-      // BƯỚC 4: Xác định giai đoạn hội thoại để xây dựng prompt phù hợp
-      const hasMenh = !!contextInfo.menh;
-      const hasBirthInfo = !!(contextInfo.fengShuiProfile || contextInfo.birthYear);
-
-      // Phát hiện ý định: thiết kế phòng vs mua đồ nội thất
-      const currentText = dto.message.toLowerCase();
-
-      // Ý định tư vấn BỐ TRÍ / THIẾT KẾ phòng (KHÔNG gợi ý sản phẩm)
-      const designIntentKeywords = [
-        'thiết kế phòng', 'bố trí', 'muốn thiết kế', 'tư vấn thiết kế',
-        'sắp xếp phòng', 'phong thủy phòng', 'bày trí', 'decor phòng',
-        'cách bố trí', 'bố trí phòng',
-      ];
-      const hasDesignIntent = designIntentKeywords.some((kw) => currentText.includes(kw));
-
-      // Ý định MUA ĐỒ / XEM SẢN PHẨM — chỉ check tin nhắn HIỆN TẠI
-      // Keywords ngắn để match linh hoạt (design intent đã có priority nên an toàn)
-      const productIntentKeywords = [
-        // Keyword ngắn, dễ match
-        'gợi ý', 'nội thất', 'đồ nội thất', 'món đồ', 'cửa hàng',
-        'sản phẩm', 'muốn mua', 'mua đồ', 'mua sắm',
-        // Keyword cụ thể
-        'đồ theo mệnh', 'nội thất theo mệnh', 'tư vấn đồ',
-        'đặt đồ', 'chọn đồ', 'đồ phù hợp', 'muốn xem', 'cho tôi xem',
-        'xem gợi ý', 'trang trí đồ', 'muốn trang trí',
-        // Tên loại sản phẩm cụ thể
-        'giường', 'sofa', 'bàn', 'tủ', 'kệ', 'ghế', 'đèn', 'tranh',
-      ];
-      const hasProductIntentInCurrentMsg =
-        productIntentKeywords.some((kw) => currentText.includes(kw));
-
-      // ── GIAI ĐOẠN 1: User hỏi mệnh, chưa nói muốn gì ──
-      const isElementDiscovery = (hasBirthInfo || hasMenh) && !hasProductIntentInCurrentMsg && !hasDesignIntent;
-
-      // ── GIAI ĐOẠN 2A: Muốn tư vấn thiết kế phòng — ƯU TIÊN CAO hơn sản phẩm ──
-      const isDesignAdvice = hasMenh && hasDesignIntent;
-
-      // ── GIAI ĐOẠN 2B: Muốn xem/mua đồ nội thất (CÓ sản phẩm) — chỉ khi KHÔNG có design intent ──
-      const isProductSuggestion = hasMenh && hasProductIntentInCurrentMsg && !hasDesignIntent;
-
-      // Thông tin phong thủy ngắn gọn từ ngày sinh
-      let elementSummary = '';
-      if (contextInfo.fengShuiProfile) {
-        const profile = contextInfo.fengShuiProfile;
-        elementSummary = formatFengShuiProfileForAI(profile);
-      }
-
-      let prompt: string;
-
-      // ════════════════════════════════════════════════
-      // GIAI ĐOẠN 1 — Phân tích phong thủy đầy đủ + hỏi ý định
-      // ════════════════════════════════════════════════
-      if (isElementDiscovery) {
-        // Chuẩn bị lời khuyên theo độ tuổi
-        const ageAdvice = contextInfo.fengShuiProfile?.ageGroup
-          ? this.getAgeGroupAdvice(contextInfo.fengShuiProfile.ageGroup)
-          : '';
-        const birthYearAdvice = contextInfo.birthYear
-          ? this.getBirthYearAdvice(contextInfo.birthYear)
-          : '';
-
-        prompt = `
-Bạn là TRỢ LÝ PHONG THỦY NỘI THẤT FUREAL.
-${conversationHistory}
-
-QUAN TRỌNG VỀ PHONG CÁCH HỘI THOẠI:
-- KHÔNG được chào hỏi lại ("Xin chào", "Chào bạn", "Rất vui"...) nếu trong HỘI THOẠI TRƯỚC đã có lời chào.
-- Đi thẳng vào nội dung phân tích.
-- Viết TỰ NHIÊN như đang trò chuyện, KHÔNG chia thành các mục cứng nhắc (1, 2, 3, 4...).
-
-DỮ LIỆU PHONG THỦY (dùng để trả lời, KHÔNG copy nguyên):
-${elementSummary}
-${this.getColorAdviceByElement(contextInfo.menh)}
-${birthYearAdvice ? `${birthYearAdvice}` : ''}
-${ageAdvice ? `${ageAdvice}` : ''}
-
-CÂU HỎI: "${dto.message}"
-
-YÊU CẦU TRẢ LỜI:
-Viết một đoạn văn tự nhiên, mạch lạc gồm các ý sau (KHÔNG đánh số, KHÔNG chia mục):
-- Xác nhận mệnh gì, nạp âm (niên mệnh) là gì, tính cách người mệnh này.
-- Năm sinh thuộc cung gì, nhóm Đông/Tây tứ mệnh. Hướng tốt nhất cho họ.
-- Màu sắc hợp mệnh (màu chủ đạo + màu hỗ trợ, giải thích tại sao). Màu nên tránh.
-- Ở độ tuổi này nên ưu tiên phong cách nội thất nào.
-
-Sau phần phân tích, HỎI KHÁCH muốn tìm hiểu thêm về:
-a) Tư vấn cách bố trí, thiết kế phòng theo phong thủy mệnh ${contextInfo.menh}
-b) Xem gợi ý đồ nội thất phù hợp với mệnh ${contextInfo.menh} từ cửa hàng Fureal
-
-QUAN TRỌNG:
-- KHÔNG gợi ý sản phẩm cụ thể, KHÔNG đưa link ảnh.
-- Thông tin ĐẦY ĐỦ, CHI TIẾT nhưng viết tự nhiên, không liệt kê khô khan.
-- Độ dài: 180-280 từ.
-- TUYỆT ĐỐI KHÔNG dùng emoji, markdown, dấu sao (*), dấu gạch dưới (_).
-- Chỉ dùng văn bản thuần, dấu gạch đầu dòng (-) khi cần.
-`;
-      }
-
-      // ════════════════════════════════════════════════
-      // GIAI ĐOẠN 2A — Tư vấn thiết kế phòng (KHÔNG sản phẩm)
-      // ════════════════════════════════════════════════
-      else if (isDesignAdvice) {
-        const ageAdvice = contextInfo.fengShuiProfile?.ageGroup
-          ? this.getAgeGroupAdvice(contextInfo.fengShuiProfile.ageGroup)
-          : '';
-
-        prompt = `
-Bạn là TRỢ LÝ PHONG THỦY NỘI THẤT FUREAL.
-${conversationHistory}
-
-QUAN TRỌNG VỀ PHONG CÁCH HỘI THOẠI:
-- KHÔNG được chào hỏi lại nếu trong HỘI THOẠI TRƯỚC đã có lời chào.
-- Đi thẳng vào nội dung tư vấn thiết kế.
-
-THÔNG TIN KHÁCH HÀNG:
-- Mệnh: ${contextInfo.menh}
-${contextInfo.huong ? `- Hướng nhà: ${contextInfo.huong}` : ''}
-${contextInfo.birthYear ? `- Năm sinh: ${contextInfo.birthYear}` : ''}
-
-MÀU SẮC MỆNH ${contextInfo.menh}: ${this.getColorAdviceByElement(contextInfo.menh)}
-${contextInfo.huong ? `HƯỚNG NHÀ: ${this.getDirectionAdvice(contextInfo.huong)}` : ''}
-${ageAdvice ? `PHONG CÁCH THEO ĐỘ TUỔI: ${ageAdvice}` : ''}
-
-CÂU HỎI: "${dto.message}"
-
-YÊU CẦU TRẢ LỜI — Tư vấn thiết kế phòng theo phong thủy, gồm các ý (viết tự nhiên):
-- Tone màu chủ đạo cho phòng (tường, sàn, rèm) dựa trên mệnh ${contextInfo.menh}.
-- Hướng đặt bàn làm việc / giường ngủ tốt nhất.
-- Chất liệu nên dùng (gỗ, kim loại, đá...) phù hợp mệnh.
-- Vị trí tránh đặt đồ nặng hoặc gương.
-- Phong cách tổng thể phù hợp (hiện đại, tối giản, cổ điển...).
-
-Cuối cùng hỏi khách có muốn xem gợi ý đồ nội thất cụ thể phù hợp mệnh ${contextInfo.menh} từ cửa hàng Fureal không.
-
-QUAN TRỌNG:
-- TUYỆT ĐỐI KHÔNG gợi ý sản phẩm cụ thể, KHÔNG đưa tên sản phẩm, giá, link ảnh.
-- Chỉ tư vấn về bố trí, màu sắc, chất liệu, hướng đặt.
-- Viết tự nhiên, mạch lạc, không chia mục cứng nhắc.
-- Độ dài: 150-250 từ.
-- TUYỆT ĐỐI KHÔNG dùng emoji, markdown, dấu sao (*), dấu gạch dưới (_).
-- Chỉ dùng văn bản thuần.
-`;
-      }
-
-      // ════════════════════════════════════════════════
-      // GIAI ĐOẠN 2B — Gợi ý sản phẩm + giải thích lý do
-      // ════════════════════════════════════════════════
-      else if (isProductSuggestion) {
-        prompt = `
-Bạn là TRỢ LÝ PHONG THỦY NỘI THẤT FUREAL.
-${conversationHistory}
-
-QUAN TRỌNG VỀ PHONG CÁCH HỘI THOẠI:
-- KHÔNG được chào hỏi lại ("Xin chào", "Chào bạn", "Rất vui"...) nếu trong HỘI THOẠI TRƯỚC đã có lời chào.
-- Đi thẳng vào nội dung gợi ý sản phẩm.
-
-THÔNG TIN KHÁCH HÀNG:
-- Mệnh: ${contextInfo.menh}
-${contextInfo.huong ? `- Hướng nhà: ${contextInfo.huong}` : ''}
-${contextInfo.birthYear ? `- Năm sinh: ${contextInfo.birthYear}` : ''}
-${contextInfo.productType ? `- Loại đồ quan tâm: ${contextInfo.productType}` : ''}
-
-MÀU SẮC MỆNH ${contextInfo.menh}: ${this.getColorAdviceByElement(contextInfo.menh)}
-
-DANH SÁCH SẢN PHẨM TRONG HỆ THỐNG (Format: Tên|Giá|Mệnh|Hướng|Link ảnh):
-${productContext}
-
-QUY TẮC BẮT BUỘC:
-1. CHỈ giới thiệu sản phẩm có trong danh sách trên
-2. TUYỆT ĐỐI KHÔNG tự tạo tên, giá, link ảnh mới
-3. PHẢI có link ảnh thực tế cho mỗi sản phẩm
-
-CÂU HỎI: "${dto.message}"
-
-YÊU CẦU TRẢ LỜI:
-1. Mở đầu ngắn (1 câu): xác nhận mệnh + loại đồ phù hợp
-2. Gợi ý 3-5 sản phẩm từ danh sách trên theo format này:
-
-[Tên sản phẩm]
-- Giá: [giá thực tế từ danh sách]đ
-- Tại sao phù hợp với mệnh ${contextInfo.menh}: [giải thích cụ thể: màu sắc, chất liệu, hướng đặt]
-- Hình ảnh: [link ảnh thực tế từ danh sách]
-
-3. Kết: 1-2 câu lời khuyên thêm về bố trí hoặc kết hợp
-4. Hỏi xem họ muốn tìm hiểu thêm gì không
-
-Phong cách: Chuyên nghiệp nhưng thân thiện, giải thích rõ TẠI SAO mỗi món phù hợp.
-Độ dài: 150-250 từ.
-TUYỆT ĐỐI KHÔNG dùng emoji, markdown, dấu sao (*), dấu gạch dưới (_).
-Chỉ dùng văn bản thuần.
-`;
-      }
-
-      // ════════════════════════════════════════════════
-      // GIAI ĐOẠN 3 — Câu hỏi chung, hướng dẫn cơ bản
-      // ════════════════════════════════════════════════
-      else {
-        prompt = `
-Bạn là TRỢ LÝ PHONG THỦY NỘI THẤT FUREAL.
-${conversationHistory}
-
-QUAN TRỌNG VỀ PHONG CÁCH HỘI THOẠI:
-- KHÔNG được chào hỏi lại ("Xin chào", "Chào bạn", "Rất vui"...) nếu trong HỘI THOẠI TRƯỚC đã có lời chào.
-- Nếu đây là tin nhắn đầu tiên thì có thể chào ngắn gọn 1 lần.
-
-CÂU HỎI: "${dto.message}"
-
-YÊU CẦU TRẢ LỜI:
-1. Trả lời trực tiếp câu hỏi (nếu là câu hỏi chung về phong thủy/nội thất)
-2. Nếu chưa biết mệnh của họ: hỏi năm sinh để tư vấn chính xác hơn
-3. Giới thiệu ngắn 2 điều bot có thể giúp:
-   - Xác định mệnh từ năm sinh và tư vấn phong thủy
-   - Gợi ý đồ nội thất phù hợp với mệnh từ hệ thống sản phẩm Fureal
-
-Phong cách: Tự nhiên, thân thiện.
-Độ dài: 3-5 câu ngắn gọn.
-TUYỆT ĐỐI KHÔNG dùng emoji, markdown, dấu sao (*), dấu gạch dưới (_).
-Chỉ dùng văn bản thuần.
-`;
-      }
-
+      const prompt = this.buildChatPrompt(dto);
       return await this.callGeminiAPI(prompt);
     } catch (error) {
       this.logger.error('Error in chat:', error);
-      
-      // Re-throw if it's already a BadRequestException (from rate limiting)
       if (error instanceof BadRequestException) {
         throw error;
       }
-      
       throw new BadRequestException('Không thể xử lý tin nhắn. Vui lòng thử lại.');
     }
   }
