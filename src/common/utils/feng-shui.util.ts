@@ -120,9 +120,11 @@ export function getNapAm(year: number): { name: string; element: FengShuiElement
 }
 
 /**
- * Calculate Cung mệnh (Bát trạch) using verified anchor formula.
- * Nam:  cycle descends 9→8→7→6→5(Khôn)→4→3→2→1→9 … anchor: 1990=Khảm(1)
- * Nữ:   cycle ascends 1→2→3→4→5(Cấn)→6→7→8→9→1 … anchor: 1990=Cấn(8)
+ * Calculate Cung mệnh (Bát trạch) using digit-sum (digital root) formula.
+ * Nam:  11 − digital_root(year), reduced to 1-9, centre 5 → Khôn
+ *       Simplified: ((1990 − year) % 9 + 9) % 9 + 1
+ * Nữ:   digital_root(year) + 4, reduced to 1-9, centre 5 → Cấn
+ *       Simplified: ((year + 3) % 9) + 1
  */
 export function getCungMenh(year: number, gender: 'Nam' | 'Nữ' = 'Nam'): string {
   if (gender === 'Nam') {
@@ -131,11 +133,9 @@ export function getCungMenh(year: number, gender: 'Nam' | 'Nữ' = 'Nam'): strin
     if (num === 5) return 'Khôn';              // male centre → Khôn
     return CUNG_NAMES[num] ?? 'Khôn';
   } else {
-    const raw = ((year - 1990) % 9 + 9) % 9;
-    const num = raw + 8;                       // shift so 1990→8 (Cấn)
-    const adjusted = ((num - 1) % 9) + 1;     // keep in 1-9
-    if (adjusted === 5) return 'Cấn';         // female centre → Cấn
-    return CUNG_NAMES[adjusted] ?? 'Cấn';
+    const num = ((year + 3) % 9) + 1;         // digital_root + 4, keep 1-9
+    if (num === 5) return 'Cấn';              // female centre → Cấn
+    return CUNG_NAMES[num] ?? 'Cấn';
   }
 }
 
