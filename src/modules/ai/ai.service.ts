@@ -330,11 +330,17 @@ export class AiService implements OnModuleInit {
 
     let conversationHistory = '';
     if (dto.conversationHistory && dto.conversationHistory.length > 0) {
-      const recent = dto.conversationHistory.slice(-4);
-      conversationHistory =
-        '\nHỘI THOẠI TRƯỚC:\n' +
-        recent.map((msg) => `${msg.role === 'user' ? 'Khách' : 'Bot'}: ${msg.content}`).join('\n') +
-        '\n';
+      // Lọc bỏ lời chào mặc định chứa tên user từ frontend
+      const filtered = dto.conversationHistory.filter(
+        (msg) => !(msg.role === 'assistant' && msg.content.startsWith('Xin chào')),
+      );
+      const recent = filtered.slice(-4);
+      if (recent.length > 0) {
+        conversationHistory =
+          '\nHỘI THOẠI TRƯỚC:\n' +
+          recent.map((msg) => `${msg.role === 'user' ? 'Khách' : 'Bot'}: ${msg.content}`).join('\n') +
+          '\n';
+      }
     }
 
     const hasMenh = !!contextInfo.menh;
@@ -380,8 +386,8 @@ Bạn là TRỢ LÝ PHONG THỦY NỘI THẤT FUREAL.
 ${conversationHistory}
 
 QUAN TRỌNG VỀ PHONG CÁCH HỘI THOẠI:
-- KHÔNG được chào hỏi lại nếu trong HỘI THOẠI TRƯỚC đã có lời chào.
-- Đi thẳng vào nội dung phân tích.
+- TUYỆT ĐỐI KHÔNG chào hỏi, KHÔNG gọi tên ("Chào bạn", "Chào Khánh", "Xin chào", "Rất vui"...).
+- Đi thẳng vào nội dung phân tích ngay câu đầu tiên.
 - Viết TỰ NHIÊN như đang trò chuyện.
 
 DỮ LIỆU PHONG THỦY:
@@ -417,6 +423,8 @@ TUYỆT ĐỐI KHÔNG dùng emoji, markdown, dấu sao (*), dấu gạch dưới
 Bạn là TRỢ LÝ PHONG THỦY NỘI THẤT FUREAL.
 ${conversationHistory}
 
+KHÔNG chào hỏi, KHÔNG gọi tên. Đi thẳng vào nội dung tư vấn.
+
 THÔNG TIN KHÁCH HÀNG:
 - Mệnh: ${contextInfo.menh}
 ${contextInfo.huong ? `- Hướng nhà: ${contextInfo.huong}` : ''}
@@ -446,6 +454,8 @@ TUYỆT ĐỐI KHÔNG dùng emoji, markdown, dấu sao (*), dấu gạch dưới
       return `
 Bạn là TRỢ LÝ PHONG THỦY NỘI THẤT FUREAL.
 ${conversationHistory}
+
+KHÔNG chào hỏi, KHÔNG gọi tên. Đi thẳng vào gợi ý sản phẩm.
 
 THÔNG TIN KHÁCH HÀNG:
 - Mệnh: ${contextInfo.menh}
@@ -478,9 +488,11 @@ TUYỆT ĐỐI KHÔNG dùng emoji, markdown, dấu sao (*), dấu gạch dưới
 Bạn là TRỢ LÝ PHONG THỦY NỘI THẤT FUREAL.
 ${conversationHistory}
 
+KHÔNG chào hỏi, KHÔNG gọi tên. Trả lời trực tiếp.
+
 CÂU HỎI: "${dto.message}"
 
-Trả lời trực tiếp. Nếu chưa biết mệnh thì hỏi năm sinh.
+Nếu chưa biết mệnh thì hỏi năm sinh.
 Giới thiệu ngắn 2 điều bot giúp được.
 
 Độ dài: 3-5 câu. KHÔNG dùng emoji, markdown.
