@@ -19,9 +19,9 @@ export class AiService implements OnModuleInit {
   private readonly logger = new Logger(AiService.name);
   private apiKey: string;
   private readonly API_ENDPOINT =
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
   private readonly STREAM_ENDPOINT =
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent';
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent';
   
   // IN-MEMORY CACHE: Lưu top products để tránh query DB mỗi lần
   private productCache: Product[] = [];
@@ -164,8 +164,11 @@ export class AiService implements OnModuleInit {
             },
           ],
           generationConfig: {
-            maxOutputTokens: 1024,
+            maxOutputTokens: 8192,
             temperature: 0.7,
+            thinkingConfig: {
+              thinkingBudget: 0,
+            },
           },
         }),
       });
@@ -230,8 +233,11 @@ export class AiService implements OnModuleInit {
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
-          maxOutputTokens: 1024,
+          maxOutputTokens: 8192,
           temperature: 0.7,
+          thinkingConfig: {
+            thinkingBudget: 0,
+          },
         },
       }),
     });

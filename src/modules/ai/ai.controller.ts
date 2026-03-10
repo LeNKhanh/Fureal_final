@@ -248,7 +248,7 @@ export class AiController {
   async healthCheck() {
     return {
       status: 'healthy',
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.5-flash',
       provider: 'Google Generative AI',
       message: 'AI service is running (REST API v1beta + SSE streaming)',
       timestamp: new Date().toISOString(),
