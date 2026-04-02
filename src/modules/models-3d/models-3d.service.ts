@@ -114,7 +114,7 @@ export class Models3DService {
   async findOne(id: string): Promise<Model3D> {
     const model = await this.modelRepository.findOne({
       where: { id },
-      relations: ['createdBy'],
+      relations: ['createdBy', 'product'],
     });
     if (!model) throw new NotFoundException(`Model 3D with ID "${id}" not found`);
     return model;
