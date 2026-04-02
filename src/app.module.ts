@@ -26,6 +26,14 @@ import { AuditLog } from './modules/audit-logs/entities/audit-log.entity';
 import { Model3D } from './modules/models-3d/entities/model-3d.entity';
 import { Partner } from './modules/partners/entities/partner.entity';
 
+// Migrations
+import { AddAddressFieldsToOrders1737285600000 } from './migrations/1737285600000-AddAddressFieldsToOrders';
+import { SeedSampleData1737286800000 } from './migrations/1737286800000-SeedSampleData';
+import { AddProductDetailsAndOrderInfo1737456000000 } from './migrations/1737456000000-AddProductDetailsAndOrderInfo';
+import { AddPaymentMethodAndNotesToOrders1737460000000 } from './migrations/1737460000000-AddPaymentMethodAndNotesToOrders';
+import { CreatePartnersTable1772600000000 } from './migrations/1772600000000-CreatePartnersTable';
+import { AddProductIdToModels3D1775027067000 } from './migrations/1775027067000-AddProductIdToModels3D';
+
 // Feature Modules
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
@@ -79,6 +87,14 @@ import { PartnersModule } from './modules/partners/partners.module';
           Partner,
         ],
         synchronize: false,
+        migrations: [
+          AddAddressFieldsToOrders1737285600000,
+          SeedSampleData1737286800000,
+          AddProductDetailsAndOrderInfo1737456000000,
+          AddPaymentMethodAndNotesToOrders1737460000000,
+          CreatePartnersTable1772600000000,
+          AddProductIdToModels3D1775027067000,
+        ],
         migrationsRun: true, // Auto-run pending migrations on startup
         logging: configService.get('app.env') === 'development',
         // SSL required for cloud databases

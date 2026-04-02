@@ -7,6 +7,7 @@ import {
   IsIn,
   MinLength,
   MaxLength,
+  ValidateIf,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -70,8 +71,9 @@ export class CreateModel3DDto {
   @IsBoolean()
   isActive?: boolean;
 
-  @ApiPropertyOptional({ example: 'uuid-of-product', description: 'Linked product ID for e-commerce cart' })
+  @ApiPropertyOptional({ example: 'uuid-of-product', description: 'Linked product ID for e-commerce cart (send null to unlink)' })
   @IsOptional()
+  @ValidateIf((_o, value) => value !== null)
   @IsString()
-  productId?: string;
+  productId?: string | null;
 }

@@ -122,6 +122,13 @@ export class Models3DService {
 
   async update(id: string, dto: UpdateModel3DDto, userId: string): Promise<Model3D> {
     const model = await this.findOne(id);
+
+    // If productId is being changed, sync the relation to avoid TypeORM
+    // using the stale loaded `product` relation instead of the new FK value.
+    if ('productId' in dto) {
+      model.product = dto.productId ? ({ id: dto.productId } as any) : null;
+    }
+
     Object.assign(model, dto);
     const saved = await this.modelRepository.save(model);
 
