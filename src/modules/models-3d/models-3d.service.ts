@@ -74,7 +74,9 @@ export class Models3DService {
     const skip = (page - 1) * limit;
     const qb = this.modelRepository
       .createQueryBuilder('model')
-      .leftJoinAndSelect('model.createdBy', 'createdBy');
+      .leftJoinAndSelect('model.createdBy', 'createdBy')
+      .leftJoin('model.product', 'product')
+      .addSelect(['product.id', 'product.name', 'product.price', 'product.stock', 'product.isActive']);
 
     if (search) {
       qb.andWhere('(model.name LIKE :s OR model.description LIKE :s)', { s: `%${search}%` });

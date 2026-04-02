@@ -9,6 +9,7 @@ import {
   Index,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
+import { Product } from '../../products/entities/product.entity';
 
 @Entity('models_3d')
 export class Model3D {
@@ -55,6 +56,15 @@ export class Model3D {
 
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
+
+  /** Linked e-commerce product (nullable — not all 3D models map to a product) */
+  @Column({ name: 'product_id', type: 'uuid', nullable: true })
+  @Index('idx_models3d_product')
+  productId: string;
+
+  @ManyToOne(() => Product, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'product_id' })
+  product: Product;
 
   @Column({ name: 'created_by_id', nullable: true })
   @Index('idx_models3d_created_by')

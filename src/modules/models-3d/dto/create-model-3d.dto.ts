@@ -69,4 +69,9 @@ export class CreateModel3DDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({ example: 'uuid-of-product', description: 'Linked product ID for e-commerce cart' })
+  @IsOptional()
+  @IsString()
+  productId?: string;
 }
