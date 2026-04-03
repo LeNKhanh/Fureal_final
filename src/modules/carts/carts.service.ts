@@ -53,9 +53,7 @@ export class CartsService {
       throw new BadRequestException('Product is not available');
     }
 
-    if (product.stock < quantity) {
-      throw new BadRequestException('Insufficient stock');
-    }
+    // Stock is validated at checkout, not when adding to cart
 
     const cart = await this.getOrCreateCart(userId);
 
