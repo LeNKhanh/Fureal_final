@@ -24,8 +24,9 @@ async function createApp() {
       'https://www.fureal.store',
       'https://fureal.store',
       'https://fureal-fe.vercel.app',
+      'https://fureal-3-d-ui.vercel.app',
     ];
-    const envOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
+    const envOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000,http://localhost:5173')
       .split(',')
       .map((o: string) => o.trim())
       .filter(Boolean);
@@ -34,7 +35,13 @@ async function createApp() {
     app.enableCors({
       origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
         // Allow server-to-server / curl (no Origin header) and listed origins
-        if (!origin || corsOrigins.includes(origin)) {
+        // Also allow any Vercel preview URL for this project
+        if (
+          !origin ||
+          corsOrigins.includes(origin) ||
+          /^https:\/\/fureal.*\.vercel\.app$/.test(origin) ||
+          /^https:\/\/fureal-3.*\.vercel\.app$/.test(origin)
+        ) {
           callback(null, true);
         } else {
           callback(null, false);

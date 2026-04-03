@@ -21,8 +21,9 @@ async function bootstrap() {
     'https://www.fureal.store',
     'https://fureal.store',
     'https://fureal-fe.vercel.app',
+    'https://fureal-3-d-ui.vercel.app',
   ];
-  const envOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
+  const envOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000,http://localhost:5173')
     .split(',')
     .map((o) => o.trim())
     .filter(Boolean);
@@ -31,7 +32,12 @@ async function bootstrap() {
   app.enableCors({
     origin: (origin, callback) => {
       // No origin = server-to-server / mobile / curl – allow
-      if (!origin || corsOrigins.includes(origin)) {
+      if (
+        !origin ||
+        corsOrigins.includes(origin) ||
+        /^https:\/\/fureal.*\.vercel\.app$/.test(origin) ||
+        /^https:\/\/fureal-3.*\.vercel\.app$/.test(origin)
+      ) {
         callback(null, true);
       } else {
         callback(null, false);
