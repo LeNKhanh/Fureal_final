@@ -77,6 +77,22 @@ export class CartsService {
     return this.getOrCreateCart(userId);
   }
 
+  async updateItemQuantity(userId: string, itemId: number, quantity: number): Promise<Cart> {
+    const cart = await this.getOrCreateCart(userId);
+
+    const item = await this.cartItemRepository.findOne({
+      where: { id: itemId, cartId: cart.id },
+    });
+
+    if (!item) {
+      throw new NotFoundException('Cart item not found');
+    }
+
+    item.quantity = quantity;
+    await this.cartItemRepository.save(item);
+    return this.getOrCreateCart(userId);
+  }
+
   async removeItem(userId: string, itemId: number): Promise<Cart> {
     const cart = await this.getOrCreateCart(userId);
 

@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { CartsService } from './carts.service';
 import { AddToCartDto } from './dto/add-to-cart.dto';
+import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { GetUser } from '../../common/decorators/get-user.decorator';
 
@@ -24,6 +25,17 @@ export class CartsController {
   @ApiResponse({ status: 201, description: 'Item added to cart' })
   addItem(@GetUser() user: any, @Body() addToCartDto: AddToCartDto) {
     return this.cartsService.addItem(user.userId, addToCartDto);
+  }
+
+  @Patch('items/:itemId')
+  @ApiOperation({ summary: 'Update cart item quantity' })
+  @ApiResponse({ status: 200, description: 'Item quantity updated' })
+  updateItem(
+    @GetUser() user: any,
+    @Param('itemId') itemId: string,
+    @Body() updateCartItemDto: UpdateCartItemDto,
+  ) {
+    return this.cartsService.updateItemQuantity(user.userId, +itemId, updateCartItemDto.quantity);
   }
 
   @Delete('items/:itemId')
